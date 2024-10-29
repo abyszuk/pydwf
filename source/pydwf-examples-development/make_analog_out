@@ -1,0 +1,86 @@
+#! /usr/bin/env python3
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pydwf import DwfAnalogOutFunction
+
+from analog_output_node_utilities import AnalogOutNodeSettings, analog_output_signal_simulator
+#(carrier_settings, am_settings, fm_settings, t):
+
+
+funcs = [
+    DwfAnalogOutFunction.DC,
+    DwfAnalogOutFunction.Sine,
+    DwfAnalogOutFunction.Square,
+    DwfAnalogOutFunction.Triangle,
+    DwfAnalogOutFunction.RampUp,
+    DwfAnalogOutFunction.RampDown,
+    DwfAnalogOutFunction.Pulse,
+    DwfAnalogOutFunction.Trapezium,
+    DwfAnalogOutFunction.SinePower
+]
+
+t = np.linspace(0.0, 1.0, 1001)
+
+plt.gcf().set_size_inches(12, 9)
+plt.subplots_adjust(wspace=0.5, hspace=0.5)
+
+image_index = 0
+start_symmetry = 50
+delta_symmetry = 1
+
+symmetry = start_symmetry
+while True:
+
+    title = "DwfAnalogOutFunction waveforms\nsymmetry = {:+.0f}".format(symmetry)
+
+    print("Rendering: {!r}".format(title))
+
+    plt.clf()
+
+    plt.suptitle(title)
+
+    for (func_index, func) in enumerate(funcs, 1):
+
+        carrier_settings = AnalogOutNodeSettings(
+                enable = True,
+                func = func,
+                frequency = 1.0,
+                amplitude = 1.0,
+                offset = 0.0,
+                symmetry = symmetry,
+                phase = 0.0
+            )
+
+        sig = analog_output_signal_simulator(carrier_settings = carrier_settings,am_settings = None, fm_settings = None, t = t)
+
+        plt.subplot(3, 3, func_index)
+
+        plt.title(func.name)
+
+        if func_index == 4:
+            plt.ylabel("signal [-]")
+
+        if func_index == 8:
+            plt.xlabel("time [period]")
+
+        plt.ylim(-1.1, +1.1)
+
+        plt.plot(t, sig)
+
+    if True:
+        plt.savefig("image_{:03d}.pdf".format(image_index))
+        break
+
+    plt.savefig("image_{:03d}.png".format(image_index), dpi=72)
+
+    if abs (symmetry) == 100:
+        delta_symmetry = -delta_symmetry
+
+    symmetry += delta_symmetry
+
+    image_index += 1
+
+    if symmetry == start_symmetry and delta_symmetry > 0:
+        break

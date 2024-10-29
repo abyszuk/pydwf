@@ -1,0 +1,381 @@
+.. include:: /substitutions.rst
+
+Analog output instrument
+========================
+
+The |AnalogOut| instrument provides multiple channels of analog output on devices that support it, such as the Analog Discovery and the Analog Discovery 2. It provides the functionality normally associated with a stand-alone arbitrary waveform generator.
+
+.. todo::
+
+    **This section is currently incomplete.**
+
+    It lacks a detailed discussion of how all the settings work.
+
+.. important::
+
+    The |AnalogOut| channels are designed to be capable of operating independently.
+
+    To that end, each |AnalogOut| channel has its own settings and state, and its behavior is fully independent from the behavior of the other analog output channels, unless explicitly commanded using the :py:meth:`AnalogOut.masterSet() <pydwf.core.api.analog_out.AnalogOut.masterSet>` method.
+
+    Because of this, each |AnalogOut| channel can be considered a fully independent instrument.
+
+Using the analog output instrument
+----------------------------------
+
+To use the |AnalogOut| instrument you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's |AnalogOut| instrument can now be accessed via its |analogOut:link| attribute, which is an instance of the |AnalogOut:link| class.
+
+For example:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+
+       # Get a reference to the device's AnalogOut instrument.
+       analogOut = device.analogOut
+
+       # Use the AnalogOut instrument: reset all output channels.
+       analogOut.reset(-1)
+
+The |AnalogOut| channel state machine
+-------------------------------------
+
+Each |AnalogOut| channel is controlled by a state machine. As an output sequence is prepared and executed, the channel goes through its various states.
+
+The current state of the channel is returned by the :py:meth:`analogOut.status() <pydwf.core.api.analog_out.AnalogOut.status>` method, and is of type |DwfState:link|.
+
+The figure below shows the states used by the |AnalogOut| instrument and the transitions between them:
+
+.. graphviz::
+   :caption: States of the |AnalogOut| instrument
+   :align: center
+
+   digraph {
+
+      rankdir=LR;
+
+      // nodes
+      node         [color="#243f60"; fillcolor="#4581bd"; style="filled"];
+
+      st_ready     [label="Ready"];
+      st_armed     [label="Armed"];
+      st_wait      [label="Wait"];
+      st_running   [label="Running"];
+      st_repeat    [label="Repeat" shape="rectangle"];
+      st_done      [label="Done"];
+
+      // edges
+      edge         [color="#4579b8"];
+
+      st_ready   -> st_armed [label="Start?"];
+      st_armed   -> st_wait [label="Trigger?"];
+      st_wait    -> st_running;
+      st_running -> st_repeat;
+      st_repeat  -> st_armed [style="dashed"];
+      st_repeat  -> st_wait [style="dashed"];
+      st_repeat  -> st_done;
+   }
+
+The |AnalogOut| states are used as follows:
+
+1. |Ready:link|
+
+   In this preparatory state, channel settings can be changed that specify the behavior of the channel in the coming output sequence. If the auto-configure setting of the device is enabled (the default), setting changes will automatically be transferred to the device. If not, an explicit call to the :py:meth:`analogOut.configure() <pydwf.core.api.analog_out.AnalogOut.configure>` method is needed to transfer updated settings to the device.
+
+   Once the channel is properly configured, an output sequence can be started by calling the :py:meth:`analogOut.configure() <pydwf.core.api.analog_out.AnalogOut.configure>` with the *start* parameter set to True. This will start the first stage of the output sequence by entering the |Armed:link| state.
+
+2. |Armed:link|
+
+   In this state the channel continuously monitors the configured trigger input. As soon as a trigger event is detected, the instrument proceeds to the |Wait:link| state.
+
+3. |Wait:link|
+
+   In this state, the analog output is driven according to the channel's *Idle* setting. The duration of the wait state is configurable. Once this duration has passed, the channel proceeds to the |Running:link| state.
+
+4. |Running:link|
+
+   In this state the channel drives its output according to its node settings. This continues until the run duration has been reached. The channel then proceeds to the **Repeat** state.
+
+5. **Repeat**
+
+    .. note::
+
+        This is not a true state, in that there is no |DwfState:link| value that represents it. It is included here to explain the control flow of the |AnalogOut| channel state machine.
+
+    When an output run is finished, the *repeat count* is decremented.
+
+    If, after decrementing, the *repeat count* is unequal to zero, more output must be produced. If the *repeat trigger* setting is True, the channel proceeds to the |Armed:link| state; in that case, a trigger is needed to start each of the output runs. If the *repeat trigger* setting is False, the channel proceeds immediately to the |Wait:link| state to start another output sequence; a trigger is only required before the very first output run.
+
+    If, after decrementing, the *repeat count* did reach zero, the channel becomes idle and proceeds to the |Done:link| state.
+
+6. |Done:link|
+
+   This state indicates that an output sequence has finished. In this state, the analog output is driven according to the channel's *Idle* setting.
+
+   From this state, it is possible to go back to the |Ready:link| state by performing any kind of configuration, or to start a new output sequence.
+
+|AnalogOut| channel nodes
+-------------------------
+
+|AnalogOut| channels are organized in *nodes*, which can be independently configured. A node represent either the primary non-modulated signal (the *Carrier*), or some form of modulation, like *Amplitude Modulation* (AM) or *Frequency Modulation* (FM). The output of each node varies over time according to its settings. The node outputs are combined to synthesize the signal that is driven onto the analog output channel via a DAC.
+
+.. note::
+
+    Early versions of the library only implemented the *Carrier* signal and lacked modulation support. With the introduction of AM and FM modulation, the *node* concept was introduced. Because of this, there are 24 methods that configure the carrier signal directly, but also 24 methods that configure a selectable node. In new user programs, only the latter should be used.
+
+The nodes of an analog output channel can be configured independently. The contribution of nodes can be individually enabled or disabled, which is most useful for the AM and FM nodes. For nodes that are enabled, a number of standard waveform shape functions are available, such as sine, block, triangle, and ramp. These can be modified by controlling their offset, amplitude, frequency, phase, and symmetry; the latter alters the waveform from its regular, symmetrical shape.
+
+.. only:: html
+
+    .. image:: /images/waveforms.gif
+
+.. only:: latex
+
+    .. image:: /images/waveforms.pdf
+
+It is also possible to upload an arbitrary wave-shape to the instrument as a sequence of samples to be played. This can be used for short wave-shapes, but it is also possible to perform continuous playback by uploading blocks of samples in a loop.
+
+|AnalogOut| instrument API overview
+-----------------------------------
+
+With 83 methods, the |AnalogOut| instrument is the second most complicated instrument supported by the Digilent Waveforms API, after the |AnalogIn| instrument. Below, we categorize all its methods and shortly introduce them. Detailed information on all methods can be found in the |AnalogOut:link| class reference that follows.
+
+.. instrument control                      3
+   channel count                           1
+   per-channel state machine settings     15
+   per-channel trigger configuration       5
+   per-channel output settings             8
+   per-channel miscellaneous settings      2
+   node enumeration                        1
+   node configuration                     20
+   node data management                    4
+   carrier configuration (obsolete)       20
+   carrier data management (obsolete)      4 +
+   -------------------------------------------
+   total number of methods                83
+
+Instrument control
+^^^^^^^^^^^^^^^^^^
+
+Like all instruments supported by the Digilent Waveforms library, the |AnalogOut| instrument provides :py:meth:`reset() <pydwf.core.api.analog_out.AnalogOut.reset>`, :py:meth:`configure() <pydwf.core.api.analog_out.AnalogOut.configure>`, and :py:meth:`status() <pydwf.core.api.analog_out.AnalogOut.status>` methods.
+
+The |AnalogOut| instrument is unusual in that these methods operate on individual |AnalogOut| channels, meaning that each |AnalogOut| channel acts as as a separate, independent instrument.
+
+The :py:meth:`reset() <pydwf.core.api.analog_out.AnalogOut.reset>` method resets a specific analog output channel (or all channels).
+
+The :py:meth:`configure() <pydwf.core.api.analog_out.AnalogOut.configure>` method is used to explicitly transfer settings to the instrument, and/or to start a configured operation.
+
+The :py:meth:`status() <pydwf.core.api.analog_out.AnalogOut.status>` method retrieves status information from the instrument. It returns the current |DwfState:link| of the |AnalogOut| instrument.
+
+.. table:: Instrument control (3 methods)
+
+   +----------------------------+-----------------+------------------------------------------------------------------------+
+   | **control operation**      | **type/unit**   |**methods**                                                             |
+   +----------------------------+-----------------+------------------------------------------------------------------------+
+   | reset instrument           | *n/a*           | :py:meth:`reset()     <pydwf.core.api.analog_out.AnalogOut.reset>`     |
+   +----------------------------+-----------------+------------------------------------------------------------------------+
+   | configure instrument       | *n/a*           | :py:meth:`configure() <pydwf.core.api.analog_out.AnalogOut.configure>` |
+   +----------------------------+-----------------+------------------------------------------------------------------------+
+   | request instrument status  | |DwfState:link| | :py:meth:`status()    <pydwf.core.api.analog_out.AnalogOut.status>`    |
+   +----------------------------+-----------------+------------------------------------------------------------------------+
+
+Channel count
+^^^^^^^^^^^^^
+
+This method returns the number of analog output channels.
+
+.. table:: Channel count (1 method)
+
+   +---------------+---------------+----------------------------------------------------------------+
+   | **property**  | **type/unit** | **method**                                                     |
+   +---------------+---------------+----------------------------------------------------------------+
+   | channel count | int           | :py:meth:`count() <pydwf.core.api.analog_out.AnalogOut.count>` |
+   +---------------+---------------+----------------------------------------------------------------+
+
+Per-channel state machine settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These settings determine the duration of the |Wait:link| and |Running:link| states, how many times the Wait/Running cycle should be repeated, and whether a trigger must precede each Wait/Running cycle.
+
+The *channel master* setting allows an analog output channel to be controlled by another channel, synchronizing their behavior.
+
+.. table:: State machine settings (15 methods)
+
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**    | **type/unit** | **methods**                                                                                                                                                                                                                                                                                                   |
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | wait duration  | float [s]     | :py:meth:`waitInfo()         <pydwf.core.api.analog_out.AnalogOut.waitInfo>`         , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.waitSet>`          , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.waitGet>`                                                                             |
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | run duration   | float [s]     | :py:meth:`runInfo()          <pydwf.core.api.analog_out.AnalogOut.runInfo>`          , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.runSet>`           , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.runGet>`    , :py:meth:`–Status() <pydwf.core.api.analog_out.AnalogOut.runStatus>`    |
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | repeat count   | int [-]       | :py:meth:`repeatInfo()       <pydwf.core.api.analog_out.AnalogOut.repeatInfo>`       , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.repeatSet>`        , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.repeatGet>` , :py:meth:`–Status() <pydwf.core.api.analog_out.AnalogOut.repeatStatus>` |
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | repeat trigger | bool          | :py:meth:`repeatTriggerSet() <pydwf.core.api.analog_out.AnalogOut.repeatTriggerSet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.repeatTriggerGet>`                                                                                                                                               |
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel master | int           | :py:meth:`masterSet()        <pydwf.core.api.analog_out.AnalogOut.masterSet>`        , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.masterGet>`                                                                                                                                                      |
+   +----------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Per-channel trigger configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These settings configure the channel trigger.
+
+.. table:: Per-channel trigger configuration (5 methods)
+
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**    | **type/unit**           | **methods**                                                                                                                                                                                                                                  |
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger source | |DwfTriggerSource:link| | :py:meth:`triggerSourceInfo() <pydwf.core.api.analog_out.AnalogOut.triggerSourceInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.triggerSourceSet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.triggerSourceGet>` |
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger slope  | |DwfTriggerSlope:link|  | :py:meth:`triggerSlopeSet()   <pydwf.core.api.analog_out.AnalogOut.triggerSlopeSet>`   , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.triggerSlopeGet>`                                                                             |
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. note::
+
+   The :py:meth:`triggerSourceInfo() <pydwf.core.api.analog_out.AnalogOut.triggerSourceInfo>` method is obsolete. Use the generic |DwfDevice.triggerInfo:link| method instead.
+
+Per-channel output settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These settings determine the channel output behavior.
+
+.. table:: Per-channel output settings (8 methods)
+
+   +---------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**         | **type/unit**           | **methods**                                                                                                                                                                                                                                      |
+   +---------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel mode        | |DwfAnalogOutMode:link| | :py:meth:`modeSet()             <pydwf.core.api.analog_out.AnalogOut.modeSet>`             , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.modeGet>`                                                                                     |
+   +---------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel idle        | |DwfAnalogOutIdle:link| | :py:meth:`idleInfo()            <pydwf.core.api.analog_out.AnalogOut.idleInfo>`            , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.idleSet>`             , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.idleGet>`       |
+   +---------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel limitation  | float [V] or [A]        | :py:meth:`limitationInfo()      <pydwf.core.api.analog_out.AnalogOut.limitationInfo>`      , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.limitationSet>`       , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.limitationGet>` |
+   +---------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Per-channel miscellaneous settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The function of the *custom AM/FM enable* setting is currently not understood. It is only applicable to |Electronics Explorer:link| devices, as stated in a `message on the Digilent forum
+<https://forum.digilentinc.com/topic/22281-installation-of-waveforms-on-linux-amd64-runs-into-dependency-problem/#comment-64663>`_.
+
+.. todo::
+
+   Figure out what the *custom AM/FM enable* setting does.
+
+.. table:: Per-channel configuration (2 methods)
+
+   +---------------------+----------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**         |  **type/unit** | **methods**                                                                                                                                                              |
+   +---------------------+----------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | custom AM/FM enable | bool           | :py:meth:`customAMFMEnableSet() <pydwf.core.api.analog_out.AnalogOut.customAMFMEnableSet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.customAMFMEnableGet>` |
+   +---------------------+----------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Node enumeration
+^^^^^^^^^^^^^^^^
+
+This method enumerates all nodes of an |AnalogOut| channel.
+
+.. table:: Node enumeration (1 method)
+
+   +------------------+------------------------------+----------------------------------------------------------------------+
+   | **property**     | **type/unit**                | **methods**                                                          |
+   +------------------+------------------------------+----------------------------------------------------------------------+
+   | node enumeration | |DwfAnalogOutNode:link| list | :py:meth:`nodeInfo() <pydwf.core.api.analog_out.AnalogOut.nodeInfo>` |
+   +------------------+------------------------------+----------------------------------------------------------------------+
+
+Node configuration
+^^^^^^^^^^^^^^^^^^
+
+These methods configure the output signal of an |AnalogOut| channel node.
+
+.. table:: Node configuration (20 methods)
+
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**    | **type/unit**               | **methods**                                                                                                                                                                                                                                  |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node enable    | bool                        | :py:meth:`nodeEnableSet()     <pydwf.core.api.analog_out.AnalogOut.nodeEnableSet>`     , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodeEnableGet>`                                                                               |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node function  | |DwfAnalogOutFunction:link| | :py:meth:`nodeFunctionInfo()  <pydwf.core.api.analog_out.AnalogOut.nodeFunctionInfo>`  , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodeFunctionSet>`  , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodeFunctionGet>`  |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node frequency | float [Hz]                  | :py:meth:`nodeFrequencyInfo() <pydwf.core.api.analog_out.AnalogOut.nodeFrequencyInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodeFrequencySet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodeFrequencyGet>` |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node amplitude | float [V]                   | :py:meth:`nodeAmplitudeInfo() <pydwf.core.api.analog_out.AnalogOut.nodeAmplitudeInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodeAmplitudeSet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodeAmplitudeGet>` |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node offset    | float [V]                   | :py:meth:`nodeOffsetInfo()    <pydwf.core.api.analog_out.AnalogOut.nodeOffsetInfo>`    , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodeOffsetSet>`    , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodeOffsetGet>`    |
+   +----------------+------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node symmetry  | float [%]                   | :py:meth:`nodeSymmetryInfo()  <pydwf.core.api.analog_out.AnalogOut.nodeSymmetryInfo>`  , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodeSymmetrySet>`  , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodeSymmetryGet>`  |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node phase     | float [deg]                 | :py:meth:`nodePhaseInfo()     <pydwf.core.api.analog_out.AnalogOut.nodePhaseInfo>`     , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodePhaseSet>`     , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.nodePhaseGet>`     |
+   +----------------+-----------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Node data management
+^^^^^^^^^^^^^^^^^^^^
+
+These methods transfer arbitrary waveform data to an |AnalogOut| channel node.
+
+.. table:: Node data management (4 methods)
+
+   +------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **operation**          | **type/unit** | **methods**                                                                                                                                            |
+   +------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node data upload       | *n/a*         | :py:meth:`nodeDataInfo()   <pydwf.core.api.analog_out.AnalogOut.nodeDataInfo>`   , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.nodeDataSet>` |
+   +------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node play status       | *n/a*         | :py:meth:`nodePlayStatus() <pydwf.core.api.analog_out.AnalogOut.nodePlayStatus>`                                                                       |
+   +------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | node play data upload  | *n/a*         | :py:meth:`nodePlayData()   <pydwf.core.api.analog_out.AnalogOut.nodePlayData>`                                                                         |
+   +------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Carrier configuration (obsolete)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    These methods have been replaced by equivalent *node* methods.
+
+.. table:: Carrier configuration (20 methods)
+
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**       | **type/unit**           | **methods**                                                                                                                                                                                                                  |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier enable    | bool                    | :py:meth:`enableSet()     <pydwf.core.api.analog_out.AnalogOut.enableSet>`     , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.enableGet>`                                                                           |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier function  | |DwfTriggerSource:link| | :py:meth:`functionInfo()  <pydwf.core.api.analog_out.AnalogOut.functionInfo>`  , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.functionSet>`  , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.functionGet>`  |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier frequency | float [Hz]              | :py:meth:`frequencyInfo() <pydwf.core.api.analog_out.AnalogOut.frequencyInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.frequencySet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.frequencyGet>` |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier amplitude | float [V]               | :py:meth:`amplitudeInfo() <pydwf.core.api.analog_out.AnalogOut.amplitudeInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.amplitudeSet>` , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.amplitudeGet>` |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier offset    | float [V]               | :py:meth:`offsetInfo()    <pydwf.core.api.analog_out.AnalogOut.offsetInfo>`    , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.offsetSet>`    , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.offsetGet>`    |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier symmetry  | float [%]               | :py:meth:`symmetryInfo()  <pydwf.core.api.analog_out.AnalogOut.symmetryInfo>`  , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.symmetrySet>`  , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.symmetryGet>`  |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier phase     | float [deg]             | :py:meth:`phaseInfo()     <pydwf.core.api.analog_out.AnalogOut.phaseInfo>`     , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.phaseSet>`     , :py:meth:`–Get() <pydwf.core.api.analog_out.AnalogOut.phaseGet>`     |
+   +-------------------+-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Carrier node data management (obsolete)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    These methods have been replaced by equivalent *node* methods.
+
+.. table:: Carrier data management (4 methods)
+
+   +--------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | **operation**            | **type/unit** | **methods**                                                                                                                                |
+   +--------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier data upload      | *n/a*         | :py:meth:`dataInfo()   <pydwf.core.api.analog_out.AnalogOut.dataInfo>`   , :py:meth:`–Set() <pydwf.core.api.analog_out.AnalogOut.dataSet>` |
+   +--------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier play status      | *n/a*         | :py:meth:`playStatus() <pydwf.core.api.analog_out.AnalogOut.playStatus>`                                                                   |
+   +--------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | carrier play data upload | *n/a*         | :py:meth:`playData()   <pydwf.core.api.analog_out.AnalogOut.playData>`                                                                     |
+   +--------------------------+---------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+
+|AnalogOut| reference
+---------------------
+
+.. autoclass:: pydwf.core.api.analog_out.AnalogOut()
+   :inherited-members:

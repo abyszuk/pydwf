@@ -1,0 +1,42 @@
+.. include:: /substitutions.rst
+
+Analog impedance measurements
+=============================
+
+The |AnalogImpedance| functionality supports analog measurements of signal propagation properties on devices that support it, such as the Analog Discovery and the Analog Discovery 2.
+
+.. todo::
+
+    **This section is currently incomplete.**
+
+    It lacks information on the state machine used in the |AnalogImpedance| API, what the different settings mean, what the different methods actually do, and how they can be used to perform measurements.
+
+    There are also no |AnalogImpedance| examples yet.
+
+Using the analog impedance measurements
+---------------------------------------
+
+To use the |AnalogImpedance| functionality you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's |AnalogImpedance| functionality can now be accessed via its |analogImpedance:link| attribute, which is an instance of the |AnalogImpedance:link| class.
+
+For example:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+
+       # Get a reference to the device's AnalogImpedance functionality.
+       analogImpedance = device.analogImpedance
+
+       # Use the AnalogImpedance functionality.
+       analogImpedance.reset()
+
+|AnalogImpedance| reference
+---------------------------
+
+.. autoclass:: pydwf.core.api.analog_impedance.AnalogImpedance()
+   :inherited-members:

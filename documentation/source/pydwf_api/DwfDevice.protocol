@@ -1,0 +1,38 @@
+.. include:: /substitutions.rst
+
+CAN protocol
+============
+
+The CAN protocol support allows a Digilent Waveforms device to be used as a simple `CAN bus <https://en.wikipedia.org/wiki/CAN_bus>`_ device.
+
+.. todo::
+
+    **This section is currently incomplete.**
+
+    A bit of background on CAN would be helpful.
+
+    This section does not yet properly explain the *polarity* setting.
+
+    It also does not yet explain the *vID*, *extended*, and *remote* parameters / return values used in the *rx()* and *tx()* methods.
+
+Using the CAN protocol functionality
+------------------------------------
+
+To use the CAN protocol functionality you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's CAN protocol functionality can now be accessed via its |protocol.can:link| attribute, which is an instance of the |ProtocolCAN:link| class:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+       can = device.protocol.can
+       can.reset()
+
+|ProtocolCAN| reference
+-----------------------
+
+.. autoclass:: pydwf.core.api.protocol_can.ProtocolCAN()
+   :inherited-members:

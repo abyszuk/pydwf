@@ -1,0 +1,35 @@
+
+
+A. Fix EnumType.
+
+
+B. enum updates (5):
+
+  removed ACQMODE   enum value: acqmodeRecord2
+  new     FILTER    enum value: filterAverageFit
+  new     FUNC      enum values: funcAnalogIn<n>, with n = 1..16
+  new     ANALOGIO  enum value: analogioSlew
+  new     DwfParam  enum value: DwfParamFreqPhase
+
+C. new AnalogIn function (1):
+
+  FDwfAnalogInChannelCounts()
+
+D. new DigitalIO functions (6):
+
+  FDwfDigitalIOPull{Info/Set/Get}
+  FDwfDigitalIODrive{Info/Set/Get}
+
+E. new DigitalIn functions (3):
+
+  FDwfDigitalInStatus Compress/Compressed/Compressed2
+
+F. new SPI functions (13):
+
+  FDwfDigitalSpiDelaySet
+  FDwfDigitalSpiSelectSet
+  FDwfDigitalSpiCmd* (11)
+
+G. new SWD instument (12):
+
+  FDwfDigitalSwdReset (12)

@@ -1,0 +1,19 @@
+
+[FORMAT]
+max-line-length=119
+expected-line-ending-format=LF
+
+[MESSAGES CONTROL]
+
+# Reasons to disable:
+#
+#    invalid-name             : Many warnings; mostly because of clashing PEP-8 and DWF style.
+#    duplicate-code           : Too many spurious messages due to similar sub-APIs for different instruments.
+#    too-many-arguments       : Purely stylistic; I think human judgement trumps a fixed threshold.
+#    consider-using-f-string  : Not a big fan of f-string formatting.
+
+disable=invalid-name, duplicate-code, too-many-arguments, consider-using-f-string
+
+[VARIABLES]
+
+dummy-variables-rgx=^UNUSED_.*

@@ -1,0 +1,155 @@
+.. include:: /substitutions.rst
+
+Digilent Waveforms devices and their configurations
+===================================================
+
+This section introduces device configurations and lists all Digilent Waveforms devices (past and present) and the device configurations they support.
+
+.. todo::
+
+    **This section is currently incomplete.**
+
+    We need to gather data on more devices.
+
+.. _device-configurations:
+
+About device configurations
+---------------------------
+
+For some Digilent Waveforms devices, multiple firmware configurations are available that make different tradeoffs for certain hard-coded parameters. For example, one configuration may support a lot of buffering memory for the |AnalogIn| instrument, while another configuration may support a lot of buffering memory for the |DigitalOut| instrument. Several examples of different devices and their configurations are shown below.
+
+Devices have a default configuration that represent a balanced tradeoff in functionality that works well for most applications. However, for some user programs, it may be useful to select a different device configuration, that is better suited to the task at hand. The device enumeration API provides a way to enumerate the relevant properties of all available device configurations. A user application can use this information to select the best device configuration, and activate it while opening the device.
+
+Handling device enumeration and device configurations involves quite a bit of bookkeeping. For many applications, this complexity can be avoided by using the |pydwf.utilities.openDwfDevice:link| convenience function. It provides an easy-to-use alternative to dealing with device enumeration and device configurations directly.
+
+An overview of Digilent Waveforms devices
+-----------------------------------------
+
+We collected the information given below by executing the following command:
+
+.. code-block::
+
+   $ python3 -m pydwf list -c
+
+|Electronics Explorer:link| (legacy)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An older device. This is the predecessor of the |Analog Discovery Studio:link|.
+
+*(no data)*
+
+|Analog Discovery:link| (legacy)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An older device, coming in a black enclosure. This is the predecessor of the |Analog Discovery 2:link|.
+
+*(no data)*
+
+|Analog Discovery 2:link|
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A low-cost multi-function device; the successor to the original |Analog Discovery:link|.
+
+.. code-block:: text
+
+    device .......... : 3
+    version ......... : 3
+    username ........ : 'Discovery2'
+    devicename ...... : 'Analog Discovery 2'
+
+    Configuration:               0       1       2       3       4       5       6       7
+    ----------------------  ------  ------  ------  ------  ------  ------  ------  ------
+    AnalogInChannelCount         2       2       2       2       2       2       2       2
+    AnalogOutChannelCount        2       2       2       2       2       4       2       2
+    AnalogIOChannelCount         2       2       2       2       2       2       2       2
+    DigitalInChannelCount       16      16       0      16      16      16      16      16
+    DigitalOutChannelCount      16       0       0      16      16       8      16      16
+    DigitalIOChannelCount       16      16      16      16      16      16      16      16
+    AnalogInBufferSize        8192   16384    2048     512    8192    8192     512    8192
+    AnalogOutBufferSize       4096    1024   16384     256    4096    4096     256    1024
+    DigitalInBufferSize       4096    1024       0   16384    4096    2048   16384   16384
+    DigitalOutBufferSize      1024       0       0   16384    1024     256   16384     256
+
+Note that we only show the parameters with integer values here. This makes it look as if device configurations 0 and 4 are identical, as well as configurations 3 and 6.
+
+However, if we also consider the *OtherInfoText* information, we'd see that this is single period ('.') character in configurations 0 and 3, and '1V8_Digital_Input' in configurations 4 and 6. So those configurations that look identical are indeed distinct.
+
+|Analog Discovery 3:link|
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A current, low-cost multi-function device; the successor to the |Analog Discovery 2:link|.
+
+*(no data)*
+
+|Digital Discovery:link|
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A current, low-cost device, similar to the |Analog Discovery 2:link|, but omitting analog inputs and outputs. On the plus side, it provides high-speed differential digital inputs, and more memory for pattern generation and capture.
+
+.. code-block:: text
+
+  device .......... : 4
+  version ......... : 2
+  username ........ : 'DDiscovery'
+  devicename ...... : 'Digital Discovery'
+
+  Configuration:                 0
+  ----------------------  --------
+  AnalogInChannelCount           0
+  AnalogOutChannelCount          0
+  AnalogIOChannelCount           1
+  DigitalInChannelCount         24
+  DigitalOutChannelCount        16
+  DigitalIOChannelCount         16
+  AnalogInBufferSize             0
+  AnalogOutBufferSize            0
+  DigitalInBufferSize     67108864
+  DigitalOutBufferSize       32768
+
+|Analog Discovery Studio:link|
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is the spiritual successor to the earlier |Electronics Explorer:link| device.
+
+*(no data)*
+
+|DPS3340 Discovery:link| 
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+*(no data)*
+
+|Analog Discovery Pro 3x50:link|
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is a more high-end version of the |Analog Discovery 2:link|, sold since 2020. It provides BNC connectors for its analog inputs and outputs.
+
+This class of devices includes two models: the Analog Discovery Pro 3250 and the Analog Discovery Pro 3450.
+
+The data below is for an Analog Discovery Pro 3450:
+
+.. code-block:: text
+
+  device ........... : 6
+  version .......... : 4
+  username ......... : 'ADP3450'
+  devicename ....... : 'Analog Discovery Pro 3450'
+
+  Configuration:                 0         1
+  ----------------------  --------  --------
+  AnalogInChannelCount           4         4
+  AnalogOutChannelCount          2         2
+  AnalogIOChannelCount           1         1
+  DigitalInChannelCount         16        16
+  DigitalOutChannelCount        16        16
+  DigitalIOChannelCount         16        16
+  AnalogInBufferSize         32768     65536
+  AnalogOutBufferSize        32768      4096
+  DigitalInBufferSize        32768      8192
+  DigitalOutBufferSize       16384      1024
+
+|Analog Discovery Pro 5250:link|
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A clone of the National Instruments VB-8012 device. Works only in Windows.
+
+*(no data)*

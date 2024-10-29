@@ -1,0 +1,15 @@
+
+# Configuration file for the "readthedocs" documentation build environment.
+
+version: 2
+
+formats:
+  - pdf
+
+sphinx:
+  builder: html
+  configuration: documentation/source/conf.py
+
+# This is needed for numpy:
+python:
+  system_packages: true

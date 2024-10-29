@@ -1,0 +1,73 @@
+Changes
+-------
+
+FDwfAnalogOutNodeEnableSet: "enable" bool was replaced by "mode" int.
+
+195,196c202,203
+<         ('FDwfAnalogOutNodeEnableSet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('node', typespec.DwfAnalogOutNode), ('fEnable', typespec.c_int) ], False),
+<         ('FDwfAnalogOutNodeEnableGet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('node', typespec.DwfAnalogOutNode), ('pfEnable', typespec.c_int_ptr) ], False),
+---
+>         ('FDwfAnalogOutNodeEnableSet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('node', typespec.DwfAnalogOutNode), ('fMode', typespec.c_int) ], False),
+>         ('FDwfAnalogOutNodeEnableGet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('node', typespec.DwfAnalogOutNode), ('pfMode', typespec.c_int_ptr) ], False),
+
+
+282c293
+<         ('FDwfDigitalInInputOrderSet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('fDioFirst', typespec.c_bool) ], False),
+---
+>         ('FDwfDigitalInInputOrderSet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('fDioFirst', typespec.c_int) ], False),
+
+
+
+Additions
+=========
+
+424 --> 443 (+19)
+
++3
+
+>         ('FDwfSpectrumWindow', typespec.c_int, [ ('rgdWin', typespec.c_double_ptr), ('cdWin', typespec.c_int), ('iWindow', typespec.DwfWindow), ('vBeta', typespec.c_const_double), ('vNEBW', typespec.c_double_ptr) ], False),
+>         ('FDwfSpectrumFFT', typespec.c_int, [ ('rgdData', typespec.c_const_double_ptr), ('cdData', typespec.c_int), ('rgdBin', typespec.c_double_ptr), ('rgdPhase', typespec.c_double_ptr), ('cdBin', typespec.c_int) ], False),
+>         ('FDwfSpectrumTransform', typespec.c_int, [ ('rgdData', typespec.c_const_double_ptr), ('cdData', typespec.c_int), ('rgdBin', typespec.c_double_ptr), ('rgdPhase', typespec.c_double_ptr), ('cdBin', typespec.c_int), ('iFirst', typespec.c_double), ('iLast', typespec.c_double) ], False),
+
+- implemented but there are still issues to be resolved.
+- need to add a section to the documentation.
+- add examples.
+- add method documentation
+
++3
+
+>         ('FDwfAnalogInChannelCouplingInfo', typespec.c_int, [ ('hdwf', typespec.HDWF), ('pfscoupling', typespec.c_int_ptr) ], False),
+>         ('FDwfAnalogInChannelCouplingSet' , typespec.c_int, [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('coupling', typespec.DwfAnalogCoupling) ], False),
+>         ('FDwfAnalogInChannelCouplingGet' , typespec.c_int, [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('pcoupling', typespec.DwfAnalogCoupling_ptr) ], False),
+
+- need to add a section to the documentation.
+- update examples.
+- add method documentation
+
++4
+
+>         ('FDwfAnalogInCounterInfo'   , typespec.c_int, [ ('hdwf', typespec.HDWF), ('pcntMax', typespec.c_double_ptr), ('psecMax', typespec.c_double_ptr) ], False),
+>         ('FDwfAnalogInCounterSet'    , typespec.c_int, [ ('hdwf', typespec.HDWF), ('sec', typespec.c_double) ], False),
+>         ('FDwfAnalogInCounterGet'    , typespec.c_int, [ ('hdwf', typespec.HDWF), ('psec', typespec.c_double_ptr) ], False),
+>         ('FDwfAnalogInCounterStatus' , typespec.c_int, [ ('hdwf', typespec.HDWF), ('pcnt', typespec.c_double_ptr), ('pfreq', typespec.c_double_ptr), ('ptick', typespec.c_int_ptr) ], False),
+
+
++4
+
+>         ('FDwfDigitalInCounterInfo'  , typespec.c_int, [ ('hdwf', typespec.HDWF), ('pcntMax', typespec.c_double_ptr), ('psecMax', typespec.c_double_ptr) ], False),
+>         ('FDwfDigitalInCounterSet'   , typespec.c_int, [ ('hdwf', typespec.HDWF), ('sec', typespec.c_double) ], False),
+>         ('FDwfDigitalInCounterGet'   , typespec.c_int, [ ('hdwf', typespec.HDWF), ('psec', typespec.c_double_ptr) ], False),
+>         ('FDwfDigitalInCounterStatus', typespec.c_int, [ ('hdwf', typespec.HDWF), ('pcnt', typespec.c_double_ptr), ('pfreq', typespec.c_double_ptr), ('ptick', typespec.c_int_ptr) ], False),
+
++3
+
+>         ('FDwfDigitalOutRepetitionInfo', typespec.c_int,    [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('pnMax', typespec.c_unsigned_int_ptr) ], False),
+>         ('FDwfDigitalOutRepetitionSet' ,  typespec.c_int,   [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('cRepeat', typespec.c_unsigned_int) ], False),
+>         ('FDwfDigitalOutRepetitionGet' ,  typespec.c_int,   [ ('hdwf', typespec.HDWF), ('idxChannel', typespec.c_int), ('pcRepeat', typespec.c_unsigned_int_ptr) ], False),
+
++2
+
+================== TODO: FDwfDigitalOutPlayUpdateSet
+
+>         ('FDwfDigitalOutStatusOutput' , typespec.c_int, [ ('hdwf', typespec.HDWF), ('pfsValue', typespec.c_unsigned_int_ptr), ('pfsEnable', typespec.c_unsigned_int_ptr) ], False),
+>         ('FDwfDigitalOutPlayUpdateSet', typespec.c_int, [ ('hdwf', typespec.HDWF), ('rgBits', typespec.c_unsigned_char_ptr), ('indexOfSample', typespec.c_unsigned_int), ('countOfSamples', typespec.c_unsigned_int) ], False),

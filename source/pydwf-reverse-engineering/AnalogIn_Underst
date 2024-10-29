@@ -1,0 +1,158 @@
+#! /usr/bin/env -S python3 -u
+
+"""This script verifies the behavior of the AnalogIn instruments channel range settings."""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import random
+
+from pydwf import DwfLibrary
+
+# (1) changing the attenuation changes that setting, but also the channel offset and range.
+# (2) changing the offset or the range leaves to attenuation unchanged.
+
+def xround(x):
+    return round(x * 8) / 8.0
+
+def test1():
+
+    dwf = DwfLibrary()
+
+    with dwf.device.open(-1) as device, open("random_changes.txt", "w") as fo:
+
+        analogIn = device.analogIn
+
+        analogIn.reset()
+
+        CH1 = 0
+        CH2 = 0
+
+        channel_index = CH1
+
+        prev_attenuation = analogIn.channelAttenuationGet(channel_index)
+        prev_offset      = analogIn.channelOffsetGet(channel_index)
+        prev_range       = analogIn.channelRangeGet(channel_index)
+
+        settings = ["attenuation", "offset", "range"]
+
+        (co_min, co_max, co_nsteps) = analogIn.channelOffsetInfo()
+        co_nsteps = round(co_nsteps)
+
+        i = 0
+        while True:
+
+            setting = random.choice(settings)
+
+            if setting == "attenuation":
+                value = xround(np.random.uniform(0.125, 100))
+                analogIn.channelAttenuationSet(channel_index, value)
+            elif setting == "offset":
+                value = xround(np.random.uniform(-30.0, 30.0))
+                analogIn.channelOffsetSet(channel_index, value)
+            elif setting == "range":
+                value = xround(np.random.uniform(0.125, 100.0))
+                analogIn.channelRangeSet(channel_index, value)
+
+            curr_attenuation = analogIn.channelAttenuationGet(channel_index)
+            curr_offset      = analogIn.channelOffsetGet(channel_index)
+            curr_range       = analogIn.channelRangeGet(channel_index)
+
+            curr_attenuation2 = analogIn.channelAttenuationGet(channel_index)
+            curr_offset2      = analogIn.channelOffsetGet(channel_index)
+            curr_range2       = analogIn.channelRangeGet(channel_index)
+
+            assert curr_attenuation == curr_attenuation2
+            assert curr_offset == curr_offset2
+            assert curr_range == curr_range2
+
+            report = "{:30.20f} {:30.20f} {:30.20f}    {:20s} {:10.5f}    {:30.20f} {:30.20f} {:30.20f}".format(prev_attenuation, prev_offset, prev_range, setting, value, curr_attenuation, curr_offset, curr_range)
+
+            print(report)
+            print(report, file=fo, flush=True)
+
+            i += 1
+            if i % 10000 == 0:
+                return
+                fo.flush()
+
+            prev_attenuation = curr_attenuation
+            prev_offset      = curr_offset
+            prev_range       = curr_range
+
+def test2():
+
+    # 2 regimes: attenuation >= 10 and attenuation < 10.
+
+    dwf = DwfLibrary()
+
+    with dwf.device.open(-1) as device:
+
+        analogIn = device.analogIn
+
+        CH1 = 0
+        CH2 = 1
+
+        channel_index = CH1
+
+        data_dtype = np.dtype([("attenuation", np.float64), ("offset", np.float64), ("range", np.float64)])
+        data = []
+
+        for value in np.linspace(0.01, 100.00, 10000):
+            analogIn.reset()
+            analogIn.channelAttenuationSet(channel_index, value)
+
+            curr_attenuation = analogIn.channelAttenuationGet(channel_index)
+            curr_offset      = analogIn.channelOffsetGet(channel_index)
+            curr_range       = analogIn.channelRangeGet(channel_index)
+
+            assert curr_attenuation == value
+
+            data.append((curr_attenuation, curr_offset, curr_range))
+
+            print(curr_attenuation, curr_offset, curr_range)
+
+        data = np.array(data, dtype=data_dtype)
+
+        np.save("att.npy", data)
+
+def test3():
+
+    # We reset, set the attenuation to some constant, then sweep over the offset.
+
+    # We try to see if we understand what values the channelOffset can take.
+
+    dwf = DwfLibrary()
+
+    with dwf.device.open(-1) as device:
+
+        analogIn = device.analogIn
+
+        analogIn.reset()
+
+        CH1 = 0
+        CH2 = 1
+
+        channel_index = CH1
+
+        data_dtype = np.dtype([("vary", np.float64), ("attenuation", np.float64), ("offset", np.float64), ("range", np.float64)])
+
+        data = []
+        for vary in np.linspace(1.0, 2.0, 10001):
+            analogIn.reset()
+            analogIn.channelOffsetSet(channel_index, vary)
+
+            curr_attenuation = analogIn.channelAttenuationGet(channel_index)
+            curr_offset      = analogIn.channelOffsetGet(channel_index)
+            curr_range       = analogIn.channelRangeGet(channel_index)
+
+            data.append((vary, curr_attenuation, curr_offset, curr_range))
+
+            print(vary, curr_attenuation, curr_offset, curr_range)
+
+        data = np.array(data, dtype=data_dtype)
+
+        np.save("vary_offset.npy", data)
+
+if __name__ == "__main__":
+    test1()

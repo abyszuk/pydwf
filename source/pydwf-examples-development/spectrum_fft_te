@@ -1,0 +1,63 @@
+#! /usr/bin/env python3
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pydwf import DwfLibrary
+
+from typing import Optional
+
+def main():
+
+    dwf = DwfLibrary()
+
+    exponents = np.arange(0, 1) # 21)
+    median_rms_errors = []
+
+    for exponent in exponents:
+        n = 2 ** exponent
+        print("Performing FFTs with length {} ...".format(n))
+        rms_errors = []
+        for rep in range(11):
+
+            # Generate Gaussian noise as a test signal.
+
+            x = np.random.randn(n)
+
+            # Calculate polar representation of the FFT, using the DWF routine.
+
+            print(x)
+
+            (bins, phase) = dwf.spectrum.fft(x)
+
+            print("@@", bins, phase)
+
+            # Converts polar representation to (re, im) representation and
+            # scale values to conform to the usual signal processing convention.
+
+            f_dwf = bins * np.exp(phase * 1j) * (n / 2.0)
+
+            # Calculate (re, im) representation of the FFT using numpy's routine.
+
+            fx = np.fft.rfft(x)
+
+            # Calculate a measure for the difference between the solutions.
+
+            rms_error = np.std(fx - f_dwf)
+
+            rms_errors.append(rms_error)
+
+        median_rms_error = np.median(rms_errors)
+
+        median_rms_errors.append(median_rms_error)
+
+    plt.plot(exponents, median_rms_errors, "*-")
+    plt.title("FFT result deviation - numpy.fft.rfft vs FDwfSpectrumFFT")
+    plt.xlabel("log2(fft_size)")
+    plt.ylabel("median RMS error of FFT result")
+    plt.yscale("log")
+    plt.grid()
+    plt.show()
+
+if __name__ == "__main__":
+    main()

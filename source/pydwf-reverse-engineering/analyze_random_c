@@ -1,0 +1,54 @@
+#! /usr/bin/env python3
+
+import numpy as np
+import h5py
+
+dset_dtype = np.dtype([
+    ("attenuation_old" , np.float64),
+    ("offset_old"      , np.float64),
+    ("range_old"       , np.float64),
+    ("attenuation_new" , np.float64),
+    ("offset_new"      , np.float64),
+    ("range_new"       , np.float64),
+    ("change_value"    , np.float64)
+])
+
+i = 0
+dataset_names = ["attenuation", "offset", "range"]
+
+def flush_data(dset, data):
+    n = len(dset)
+    m = len(data)
+
+    dset.resize((n + m, ))
+    dset[-m:] = data
+
+    data.clear()
+
+with open("random_changes.txt") as fi, h5py.File("random_changes.h5", "w") as fo:
+    data = {}
+    for dataset_name in dataset_names:
+        data[dataset_name] = []
+        fo.create_dataset(dataset_name, shape=(0, ), maxshape=(None, ), dtype = dset_dtype)
+
+    for line in fi:
+        (ao, oo, ro, cvar, cval, an, on, rn) = line.split()
+        ao = float(ao)
+        oo = float(oo)
+        ro = float(ro)
+        cval = float(cval)
+        an = float(an)
+        on = float(on)
+        rn = float(rn)
+        i += 1
+
+        data[cvar].append((ao, oo, ro, an, on, rn, cval))
+
+        if i % 100000 == 0:
+            print(i)
+            for dataset_name in dataset_names:
+                flush_data(fo[dataset_name], data[dataset_name])
+
+    for dataset_name in dataset_names:
+        flush_data(fo[dataset_name], data[dataset_name])
+        data[dataset_name].clear()

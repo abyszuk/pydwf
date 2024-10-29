@@ -1,0 +1,59 @@
+#! /usr/bin/env python3
+
+"""This script verifies the behavior of the AnalogIn instruments channel range settings."""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pydwf import DwfLibrary
+
+def main():
+
+    dwf = DwfLibrary()
+
+    with dwf.device.open(-1) as device:
+        analogIn = device.analogIn
+
+        analogIn.reset()
+
+        print("channelRangeInfo ........... : ", analogIn.channelRangeInfo())
+        print("channelRangeSteps .......... : ", analogIn.channelRangeSteps())
+        print("channelOffsetInfo .......... : ", analogIn.channelOffsetInfo())
+        print()
+        for channel_index in range(analogIn.channelCount()):
+            analogIn.channelBandwidthSet(channel_index, 123456.0)
+            analogIn.channelImpedanceSet(channel_index, 654321.0)
+            analogIn.channelOffsetSet(channel_index, 0.5)
+            print("channel #{}".format(channel_index))
+            print("channelOffsetGet ........... : ", analogIn.channelOffsetGet(channel_index))
+            print("channelAttenuationGet ...... : ", analogIn.channelAttenuationGet(channel_index))
+            print("channelBandwidthGet ........ : ", analogIn.channelBandwidthGet(channel_index))
+            print("channelImpedanceGet ........ : ", analogIn.channelImpedanceGet(channel_index))
+        print()
+
+        num_channels = analogIn.channelCount()
+
+        for channel_index in range(num_channels):
+            vx = []
+            vy = []
+            for v_ideal in np.linspace(4.0, 6.0, 201):
+                #print("setting:", channel_index, v_ideal)
+                analogIn.channelRangeSet(channel_index, v_ideal)
+                v_actual = analogIn.channelRangeGet(channel_index)
+
+                vx.append(v_ideal)
+                vy.append(v_actual)
+
+            vx = np.array(vx)
+            vy = np.array(vy)
+            plt.plot(vx, vy, "*-", label="CH{}".format(channel_index + 1))
+        plt.grid()
+        plt.legend()
+        plt.show()
+
+        #def channelRangeGet(channel_index)
+        #def channelRangeSet(channel_index, volts_range)
+
+if __name__ == "__main__":
+    main()
+

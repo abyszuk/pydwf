@@ -1,0 +1,51 @@
+#! /usr/bin/env python3
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pydwf import DwfLibrary
+
+def main():
+
+    dwf = DwfLibrary()
+
+    # Prepare the testcase.
+
+    n = 1024     # number of samples
+    fs = 100.0e6  # sample frequency
+
+    # Generate an 11 MHz test signal
+
+    test_signal_frequency = 11.0e6
+
+    t = np.arange(n) / fs
+    x = np.sin(t * test_signal_frequency * 2 * np.pi) + np.random.normal(n)
+
+    # Find the frequency response between 5 and 25 MHz.
+
+    f1 =  5.0e6
+    f2 = 25.0e6
+
+    num_freq = 10001
+
+    first_freq = f1 / (fs / 2.0)  # 0.1, as per documentation example.
+    last_freq  = f2 / (fs / 2.0)  # 0.5, as per documentation example.
+
+    f = np.linspace(f1, f2, num_freq)
+
+    # Call into the DWF library.
+    (magnitude, phase) = dwf.spectrum.transform(x, num_freq, first_freq, last_freq)
+
+    # Present result.
+
+    plt.grid()
+    plt.title("We expect to see the test signal at {} MHz.".format(test_signal_frequency / 1e6))
+    plt.xlabel("frequency [MHz]")
+    plt.ylabel("magnitude")
+    plt.axvline(test_signal_frequency / 1e6, c='r')
+    plt.plot(f / 1e6, magnitude)
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

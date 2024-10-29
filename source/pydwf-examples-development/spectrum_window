@@ -1,0 +1,205 @@
+#! /usr/bin/env python3
+
+import scipy
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pydwf import DwfLibrary, DwfWindow
+
+from typing import Optional
+
+def chbevl(x, coeff):
+    """ Evaluate Chebyshev polynomial at 'x'
+    """
+
+    n = len(coeff)
+
+    b0 = 0
+    b1 = 0
+
+    for i in range(n):
+        b2 = b1
+        b1 = b0
+        b0 = x * b1 - b2 + coeff[i]
+
+    return 0.5 * (b0 - b2)
+
+
+A = np.array([
+        -4.41534164647933937950e-18,
+         3.33079451882223809783e-17,
+        -2.43127984654795469359e-16,
+         1.71539128555513303061e-15,
+        -1.16853328779934516808e-14,
+         7.67618549860493561688e-14,
+        -4.85644678311192946090e-13,
+         2.95505266312963983461e-12,
+        -1.72682629144155570723e-11,
+         9.67580903537323691224e-11,
+        -5.18979560163526290666e-10,
+         2.65982372468238665035e-9,
+        -1.30002500998624804212e-8,
+         6.04699502254191894932e-8,
+        -2.67079385394061173391e-7,
+         1.11738753912010371815e-6,
+        -4.41673835845875056359e-6,
+         1.64484480707288970893e-5,
+        -5.75419501008210370398e-5,
+         1.88502885095841655729e-4,
+        -5.76375574538582365885e-4,
+         1.63947561694133579842e-3,
+        -4.32430999505057594430e-3,
+         1.05464603945949983183e-2,
+        -2.37374148058994688156e-2,
+         4.93052842396707084878e-2,
+        -9.49010970480476444210e-2,
+         1.71620901522208775349e-1,
+        -3.04682672343198398683e-1,
+         6.76795274409476084995e-1
+     ])
+
+B = np.array([
+        -7.23318048787475395456e-18,
+        -4.83050448594418207126e-18,
+         4.46562142029675999901e-17,
+         3.46122286769746109310e-17,
+        -2.82762398051658348494e-16,
+        -3.42548561967721913462e-16,
+         1.77256013305652638360e-15,
+         3.81168066935262242075e-15,
+        -9.55484669882830764870e-15,
+        -4.15056934728722208663e-14,
+         1.54008621752140982691e-14,
+         3.85277838274214270114e-13,
+         7.18012445138366623367e-13,
+        -1.79417853150680611778e-12,
+        -1.32158118404477131188e-11,
+        -3.14991652796324136454e-11,
+         1.18891471078464383424e-11,
+         4.94060238822496958910e-10,
+         3.39623202570838634515e-9,
+         2.26666899049817806459e-8,
+         2.04891858946906374183e-7,
+         2.89137052083475648297e-6,
+         6.88975834691682398426e-5,
+         3.36911647825569408990e-3,
+         8.04490411014108831608e-1
+    ])
+
+def bessel_i0(x):
+
+    x = abs(x)
+
+    if x <= 8.0:
+        return np.exp(x) * chbevl(x / 2.0 - 2.0, A)
+    else:
+        return np.exp(x) * chbevl(32.0 / x - 2.0, B) / np.sqrt(x)
+
+bessel_i0 = np.vectorize(bessel_i0)
+
+def bi0(x):
+
+    if x == 0.0:
+        return 1.0
+
+    z = x * x
+
+    n = (z* (z* (z* (z* (z* (z* (z* (z* (z* (z* (z* (z* (z*
+                (z* 0.210580722890567e-22  + 0.380715242345326e-19) +
+                    0.479440257548300e-16) + 0.435125971262668e-13) +
+                    0.300931127112960e-10) + 0.160224679395361e-7) +
+                    0.654858370096785e-5)  + 0.202591084143397e-2) +
+                    0.463076284721000e0)   + 0.754337328948189e2) +
+                    0.830792541809429e4)   + 0.571661130563785e6) +
+                    0.216415572361227e8)   + 0.356644482244025e9) +
+                    0.144048298227235e10)
+    d = (z* (z* (z - 0.307646912682801e4) + 0.347626332405882e7) - 0.144048298227235e10)
+    return -n/d
+
+bi0 = np.vectorize(bi0)
+
+def kaiser(n, beta = 0.5):
+    """ Kaiser window.
+    """
+
+    # Special case: n == 1.
+    if n == 1:
+        return np.ones(1)
+
+    x = np.linspace(-1.0, +1.0, n)
+    w = bessel_i0(beta * np.sqrt(1 - x * x)) / bessel_i0(beta)
+    return w
+
+
+def symmetric_cosine_window(n: int, coefficients):
+    """ Generalized cosine window."""
+
+    coefficients_array = np.asarray(coefficients)
+
+    phase_matrix = np.arange(len(coefficients_array)).reshape(-1, 1) @ np.linspace(0, 2 * np.pi, n).reshape(1, -1)
+
+    return coefficients_array @ np.cos(phase_matrix)
+
+
+def my_spectrumWindow(n: int, win: DwfWindow, beta: Optional[float]=None):
+    if win == DwfWindow.Rectangular:
+        w = np.ones(n)
+    elif win == DwfWindow.Triangular:
+        w = (n + 1) - np.abs(2 * np.arange(n) - (n - 1))
+    elif win == DwfWindow.Hamming:
+        w = symmetric_cosine_window(n, [0.54, -0.46])
+    elif win == DwfWindow.Hann:
+        w = symmetric_cosine_window(n, [0.50, -0.50])
+    elif win == DwfWindow.Cosine:
+        w = np.sin(np.pi * np.arange(n) / (n - 1))
+    elif win == DwfWindow.BlackmanHarris:
+        w = symmetric_cosine_window(n, [0.35875, -0.48829, 0.14128, -0.01168])
+    elif win == DwfWindow.FlatTop:
+        w = symmetric_cosine_window(n, [1.0, -1.93, +1.29, -0.388, +0.028])
+    elif win == DwfWindow.Kaiser:
+        #raise NotImplementedError() ############################################### NOT DONE
+        w = kaiser(n, beta)
+    else:
+        raise ValueError()
+    w = w / np.sum(w) * n
+    nebw = n * np.sum(w**2) / np.sum(w)**2
+    return (w, nebw)
+
+w1 = kaiser(1, 17.4)
+w2 = scipy.signal.windows.kaiser(1, 17.4)
+print(w1)
+print(w2)
+sys.exit(0)
+
+#x = np.linspace(-5, 5)
+#b_ref = bessel_i0(x)
+#b_dwf = bi0(x)
+
+#plt.plot(x, b_ref)
+#plt.plot(x, b_dwf)
+#plt.show()
+
+dwf = DwfLibrary()
+
+for win in (DwfWindow.Rectangular, DwfWindow.Triangular, DwfWindow.Hamming, DwfWindow.Hann, DwfWindow.BlackmanHarris, DwfWindow.FlatTop):
+#for win in (DwfWindow.Kaiser, ):
+    for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10):
+        for beta in (1.5, ): # 0.4, 0.6):
+            print("wspec {} n {} beta {}".format(win, n, beta))
+            (w, nebw) = dwf.spectrum.window(n, win, beta)
+            (my_w, my_nebw) = my_spectrumWindow(n, win, beta)
+            w_error = np.amax(np.abs(my_w - w))
+            nebw_error = np.abs(my_nebw - nebw)
+            print("wspec {} n {} beta {} w_error {} nebw_error {}".format(win, n, beta, w_error, nebw_error))
+            print(np.sum(w))
+            print(np.sum(my_w))
+            #print("kaiser_dwf (beta={}, n={})".format(beta, n), w)
+            #print("kaiser_ref (beta={}, n={})".format(beta, n), my_w)
+            print()
+
+            if w_error > 1e-10:
+                raise RuntimeError()
+
+            if nebw_error > 1e-10:
+                raise RuntimeError()

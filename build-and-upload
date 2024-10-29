@@ -1,0 +1,96 @@
+#! /bin/bash
+
+# This script performs all the steps needed to build and upload a new
+# pydwf release (PyPi package and ReadTheDocs documentation.)
+
+set -e
+
+# First, make sure that the PYPI_USERNAME and PYPI_PASSWORD environment variables are set.
+# These will be needed to upload our stuff to PyPI.
+if [[ -z "$PYPI_USERNAME" || -z "$PYPI_PASSWORD" ]]; then
+    echo "ERROR: environment variables PYPI_USERNAME and PYPI_PASSWORD must be set."
+    exit
+fi
+
+# Make sure we use our local (recent) Python release.
+export PATH="$PWD/maintainer/local_python/root/bin:$PATH"
+
+# Sync from remote git, to make sure we're up-to-date.
+echo "Running git pull ..."
+git pull
+echo
+
+# Run mypy, to check everything is ok.
+# We run mypy before pylint because the pylint run is pretty slow.
+# This way, the maintainer has some mypy output to read while pylint is running.
+echo "Running MyPy ..."
+echo
+mypy source/pydwf source/pydwf-examples || true
+echo
+
+# Run pylint, to check everything is ok.
+echo "Running PyLint ..."
+echo
+pylint --exit-zero source/pydwf source/pydwf-examples
+echo
+
+# Show current version number.
+echo "Current version number check ..."
+echo
+grep version setup.cfg
+echo
+
+# Ask the maintainer for a new version number. This may be the same as the old one.
+echo "Enter new pydwf version number:"
+read VERSION
+echo
+
+# Bump version number in the code and documentation.
+cd maintainer/tools
+./UpdateVersion.py --update-version $VERSION
+cd ../..
+
+# Build Sphinx documentation (HTML and PDF).
+cd documentation
+./mk-docs.sh
+cp build/latex/pydwf.pdf build/latex/pydwf-$VERSION.pdf
+cd ..
+
+# Clean cruft from the pydwf-examples directory.
+rm -rf `find source/pydwf-examples -name "__pycache__"`
+
+# Compressed data to be distributed with pydwf (example, HTML docs, PDF manual).
+cd maintainer/tools
+./CompressPyDwfData.py
+cd ../..
+
+# Build the source and binary packages.
+rm -rf dist
+python3 -m build -n
+rm -rf build source/pydwf.egg-info
+
+# Show package contents.
+# A final, useful check for the maintainer to see if everything intended is there (and vice versa).
+echo "Package contents:"
+echo
+unzip -v dist/*.whl
+echo
+
+# Prompt for confirmation before upload.
+echo "Press enter to upload packages to PyPi ..."
+read dummy
+echo
+
+# Upload the source and binary packages just built to PyPI.
+python3 -m twine upload -u "$PYPI_USERNAME" -p "$PYPI_PASSWORD" dist/*
+echo
+
+# Push changes to remote git.
+# Tag the version.
+# This will also trigger ReadTheDocs to rebuild the documentation.
+git commit . -m "Release $VERSION"
+git tag $VERSION
+git push
+echo
+
+echo "All done."

@@ -1,0 +1,171 @@
+.. include:: /substitutions.rst
+
+*pydwf* enumeration types
+=========================
+
+Throughout |pydwf|, enumeration types are used as parameters or return values. They are generally used when a parameter or return value can take on a small number of specific values.
+
+Using the |pydwf| enumeration types
+-----------------------------------
+
+The enumeration types are defined in the |pydwf.core.auxiliary.enum_types| module. They are Python equivalents of the |libdwf-enum-count| enumerations defined in the *dwf.h* header file provided by Digilent.
+
+Note:
+    |pydwf| does not replicate the obsolete enumerations *TRIGCOND* and *STS* that are defined in the C header file.
+    *TRIGCOND* has been replaced by |DwfTriggerSlope:link|; *STS* has been replaced by |DwfState:link|.
+
+The definitions in the header file do not use C enum types, but rather use a *typedef* to define a type name that is an alias for either *int* or *unsigned char*, followed by a number of constant declarations. For example:
+
+.. code-block:: c
+
+   // instrument states:
+   typedef unsigned char DwfState;
+   const DwfState DwfStateReady        = 0;
+   const DwfState DwfStateConfig       = 4;
+   const DwfState DwfStatePrefill      = 5;
+   const DwfState DwfStateArmed        = 1;
+   const DwfState DwfStateWait         = 7;
+   const DwfState DwfStateTriggered    = 3;
+   const DwfState DwfStateRunning      = 3;
+   const DwfState DwfStateDone         = 2;
+
+The enumeration type names in the C library are a mix between different naming styles. For reasons of consistently, we decided to rename the types in |pydwf|; the table below shows the correspondence between C and Python names.
+
+.. table:: Correspondence between |libdwf| and |pydwf| enumeration type names
+   :align: center
+   
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | |libdwf| name           | |pydwf| name                             | used by                                                  |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DWFERC                  | |DwfErrorCode:link|                      | |DwfLibrary.getLastError:link| method                    |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | ENUMFILTER              | |DwfEnumFilter:link|                     | |DeviceEnum.enumerateDevices:link| method                |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfEnumConfigInfo       | |DwfEnumConfigInfo:link|                 | |DeviceEnum.configInfo:link| method                      |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DEVID                   | |DwfDeviceID:link|                       | |DeviceEnum.deviceType:link| method                      |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DEVVER                  | |DwfDeviceVersion:link|                  | |DeviceEnum.deviceType:link| method                      |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfParam                | |DwfDeviceParameter:link|                | |DwfLibrary|, |DwfDevice| methods                        |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfWindow               | |DwfWindow:link|                         | |DwfLibrary| methods                                     |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfState                | |DwfState:link|                          | all 4 main instruments; |AnalogImpedance|                |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | TRIGSRC                 | |DwfTriggerSource:link|                  | all 4 main instruments; |DeviceControl|                  |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfTriggerSlope         | |DwfTriggerSlope:link|                   | all 4 main instruments                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | ACQMODE                 | |DwfAcquisitionMode:link|                | |AnalogIn| and |DigitalIn| instruments                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | FILTER                  | |DwfAnalogInFilter:link|                 | |AnalogIn| instrument                                    |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfAnalogCoupling       | |DwfAnalogCoupling:link|                 | |AnalogIn| instrument                                    |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | TRIGTYPE                | |DwfAnalogInTriggerType:link|            | |AnalogIn| instrument                                    |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | TRIGLEN                 | |DwfAnalogInTriggerLengthCondition:link| | |AnalogIn| instrument                                    |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | FUNC                    | |DwfAnalogOutFunction:link|              | |AnalogOut| instrument                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | AnalogOutNode           | |DwfAnalogOutNode:link|                  | |AnalogOut| instrument                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfAnalogOutMode        | |DwfAnalogOutMode:link|                  | |AnalogOut| instrument                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfAnalogOutIdle        | |DwfAnalogOutIdle:link|                  | |AnalogOut| instrument                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfDigitalInClockSource | |DwfDigitalInClockSource:link|           | |DigitalIn| instrument                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfDigitalInSampleMode  | |DwfDigitalInSampleMode:link|            | |DigitalIn| instrument                                   |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfDigitalOutOutput     | |DwfDigitalOutOutput:link|               | |DigitalOut| instrument                                  |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfDigitalOutType       | |DwfDigitalOutType:link|                 | |DigitalOut| instrument                                  |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfDigitalOutIdle       | |DwfDigitalOutIdle:link|                 | |DigitalOut| instrument, |ProtocolSPI| support           |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | ANALOGIO                | |DwfAnalogIO:link|                       | |AnalogIO| functionality                                 |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfAnalogImpedance      | |DwfAnalogImpedance:link|                | |AnalogImpedance.statusMeasure:link| method              |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+   | DwfDmm                  | |DwfDMM:link|                            | *not currently used*                                     |
+   +-------------------------+------------------------------------------+----------------------------------------------------------+
+
+.. note::
+
+   The |DwfDMM:link| type is defined, but not yet used by any API. It appears to be geared towards support for DMM functionality offered by the ADP 5250 device.
+
+The top-level |pydwf| package imports the enumeration types from |pydwf.core.auxiliary.enum_types| to make them available to user scripts. To use these types, you should import the ones you need from the top-level |pydwf| package:
+
+.. code-block:: python
+
+   # Here, we import all 27 pydwf enumeration types.
+   # In practical scripts, only a few of these will be imported.
+
+   from pydwf import (DwfErrorCode, DwfEnumFilter, DwfEnumConfigInfo, DwfDeviceID,
+                      DwfDeviceVersion, DwfDeviceParameter, DwfWindow, DwfState,
+                      DwfTriggerSource, DwfTriggerSlope, DwfAcquisitionMode,
+                      DwfAnalogInFilter, DwfAnalogCoupling, DwfAnalogInTriggerType,
+                      DwfAnalogInTriggerLengthCondition, DwfAnalogOutFunction,
+                      DwfAnalogOutNode, DwfAnalogOutMode, DwfAnalogOutIdle,
+                      DwfDigitalInClockSource, DwfDigitalInSampleMode,
+                      DwfDigitalOutOutput, DwfDigitalOutType, DwfDigitalOutIdle,
+                      DwfAnalogIO, DwfAnalogImpedance, DwfDmm)
+
+|pydwf| enumeration classes reference
+-------------------------------------
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfErrorCode()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfEnumFilter()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfEnumConfigInfo()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDeviceID()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDeviceVersion()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDeviceParameter()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfWindow()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfState()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfTriggerSource()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfTriggerSlope()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAcquisitionMode()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogInFilter()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogCoupling()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogInTriggerType()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogInTriggerLengthCondition()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogOutFunction()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogOutNode()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogOutMode()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogOutIdle()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDigitalInClockSource()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDigitalInSampleMode()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDigitalOutOutput()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDigitalOutType()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDigitalOutIdle()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogIO()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfAnalogImpedance()
+
+.. autoclass:: pydwf.core.auxiliary.enum_types.DwfDmm()

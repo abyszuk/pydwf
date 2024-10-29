@@ -1,0 +1,31 @@
+#! /usr/bin/env python3
+
+from pydwf import DwfLibrary, DwfAnalogCoupling
+from pydwf.utilities import openDwfDevice
+
+
+#         ('FDwfAnalogInCounterInfo'   , typespec.c_int, [ ('hdwf', typespec.HDWF), ('pcntMax', typespec.c_double_ptr), ('psecMax', typespec.c_double_ptr) ], False),
+#         ('FDwfAnalogInCounterSet'    , typespec.c_int, [ ('hdwf', typespec.HDWF), ('sec', typespec.c_double) ], False),
+#         ('FDwfAnalogInCounterGet'    , typespec.c_int, [ ('hdwf', typespec.HDWF), ('psec', typespec.c_double_ptr) ], False),
+#         ('FDwfAnalogInCounterStatus' , typespec.c_int, [ ('hdwf', typespec.HDWF), ('pcnt', typespec.c_double_ptr), ('pfreq', typespec.c_double_ptr), ('ptick', typespec.c_int_ptr) ], False),
+
+dwf = DwfLibrary()
+with openDwfDevice(dwf) as device:
+    analogIn = device.analogIn
+    analogIn.reset()
+
+    counter_info = analogIn.counterInfo()
+    print(counter_info)
+
+
+    duration = analogIn.counterGet()
+    print(duration)
+
+    analogIn.counterSet(0.500)
+
+    duration = analogIn.counterGet()
+    print(duration)
+
+    for i in range(10):
+        status = analogIn.counterStatus()
+        print(status)

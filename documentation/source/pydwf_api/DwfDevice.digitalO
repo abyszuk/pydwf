@@ -1,0 +1,279 @@
+.. include:: /substitutions.rst
+
+Digital output instrument
+=========================
+
+The |DigitalOut| instrument provides multiple channels of digital input on devices that support it, such as the Analog Discovery, Analog Discovery 2, and Digital Discovery. It provides the functionality normally associated with a stand-alone digital pattern generator.
+
+.. todo::
+
+    **This section is currently incomplete.**
+
+    It lacks a detailed discussion of how all the settings work.
+
+Using the digital output instrument
+-----------------------------------
+
+To use the |DigitalOut| functionality you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's |DigitalOut| functionality can now be accessed via its |digitalOut:link| attribute, which is an instance of the |DigitalOut:link| class.
+
+For example:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+
+       # Get a reference to the device's DigitalOut instrument.
+       digitalOut = device.digitalOut
+
+       # Use the DigitalOut instrument.
+       digitalOut.reset()
+
+.. important::
+
+   Both the |DigitalIO:link| and |DigitalOut:link| instruments provide an API to drive the same digital outputs. The former provides a very simple API that can be used in cases where precise timing or realtime behavior is not relevant, while the latter provides a more powerful, but also more complicated API that provides far greater control over timing.
+   
+   The rule for which device gets precedence is explained in a `topic on the Digilent forum <https://forum.digilentinc.com/topic/22107-rules-of-precedence-for-digital-out-driving-instruments/>`_. In summary:
+
+   * For DIO channels where the |DigitalIO| instrument sets *outputEnable* to 1, the behavior of the channel is determined by the |DigitalIO| instrument.
+   * For DIO channels where the |DigitalIO| instrument sets *outputEnable* to 0, and the *output* is set to 1, the channel is in high-impedance ('Z') state.
+   * For DIO channels where the |DigitalIO| instrument sets *outputEnable* to 0, and the *output* is set to 0, the behavior of the channel is determined by the |DigitalOut| instrument.
+
+   Thus, in order to use the |DigitalOut| instrument for a specific channel, the user must ensure that the |DigitalIO| instrument sets both the *outputEnable* and *output* configuration bits to 0. In most circumstances it is not necessary to do this explicitly, since this is the default setting of the |DigitalIO| instrument for each channel.
+
+The |DigitalOut| instrument state machine
+-----------------------------------------
+
+The |DigitalOut| instrument is controlled by a state machine. As an output sequence is prepared and executed, the instrument goes through its various states.
+
+The current state of the instrument is returned by the :py:meth:`digitalOut.status() <pydwf.core.api.digital_out.DigitalOut.status>` method, and is of type |DwfState:link|.
+
+The figure below shows the states used by the |DigitalOut| instrument and the transitions between them:
+
+.. graphviz::
+   :caption: States of the |DigitalOut| instrument
+   :align: center
+
+   digraph {
+
+      rankdir=LR;
+
+      // nodes
+      node         [color="#243f60"; fillcolor="#4581bd"; style="filled"];
+
+      st_ready     [label="Ready"];
+      st_armed     [label="Armed"];
+      st_wait      [label="Wait"];
+      st_running   [label="Running"];
+      st_repeat    [label="Repeat" shape="rectangle"];
+      st_done      [label="Done"];
+
+      // edges
+      edge         [color="#4579b8"];
+
+      st_ready   -> st_armed [label="Start?"];
+      st_armed   -> st_wait [label="Trigger?"];
+      st_wait    -> st_running;
+      st_running -> st_repeat;
+      st_repeat  -> st_armed [style="dashed"];
+      st_repeat  -> st_wait [style="dashed"];
+      st_repeat  -> st_done;
+   }
+
+The |DigitalOut| states are used as follows:
+
+1. |Ready:link|
+
+   In this preparatory state, instrument settings can be changed that specify the behavior of the instrument in the coming output sequence. If the auto-configure setting of the device is enabled (the default), setting changes will automatically be transferred to the device. If not, an explicit call to the :py:meth:`digitalOut.configure() <pydwf.core.api.digital_out.DigitalOut.configure>` method is needed to transfer updated settings to the device.
+
+   Once the instrument is properly configured, an output sequence can be started by calling the :py:meth:`digitalOut.configure() <pydwf.core.api.digital_out.DigitalOut.configure>` with the *start* parameter set to True. This will start the first stage of the output sequence by entering the |Armed:link| state.
+
+2. |Armed:link|
+
+   In this state the instrument continuously monitors the configured trigger input. As soon as a trigger event is detected, the instrument proceeds to the |Wait:link| state.
+
+3. |Wait:link|
+
+      In this state, the digital outputs are driven according to their *Idle* settings. The duration of the wait state is configurable. Once this duration has passed, the instrument proceeds to the |Running:link| state.
+
+4. |Running:link|
+
+   In this state, the digital outputs are driven according to their individual configurations. This continues until the run duration has been reached. The channel then proceeds to the **Repeat** state.
+
+5. **Repeat**
+
+    .. note::
+
+        This is not a true state, in that there is no |DwfState:link| value that represents it. It is included here to explain the control flow of the |DigitalOut| instrument state machine.
+
+    When an output run is finished, the *repeat count* is decremented.
+
+    If, after decrementing, the *repeat count* is unequal to zero, more output must be produced. If the *repeat trigger* setting is True, the instrument proceeds to the |Armed:link| state; in that case, a trigger is needed to start each of the output runs. If the *repeat trigger* setting is False, the instrument proceeds immediately to the |Wait:link| state to start another output sequence; a trigger is only required before the very first output run.
+
+    If, after decrementing, the *repeat count* did reach zero, the instrument becomes idle and proceeds to the |Done:link| state.
+
+6. |Done:link|
+
+   This state indicates that an output sequence has finished. In this state, the outputs are driven according to their *Idle* setting.
+
+   From this state, it is possible to go back to the |Ready:link| state by performing any kind of configuration, or to start a new output sequence.
+
+|DigitalOut| instrument API overview
+------------------------------------
+
+The |DigitalOut| instrument is quite complicated; 53 methods are provided to control its behavior. Below, we categorize these methods and shortly introduce them. Detailed information on all methods can be found in the |DigitalOut:link| class reference that follows.
+
+.. instrument control                      4
+   channel count                           1
+   state machine settings                 13
+   trigger configuration                   5
+   output settings                        11
+   output pattern timing definition       14
+   data playback                           5 +
+   -------------------------------------------
+   total number of methods                53
+
+Instrument control
+^^^^^^^^^^^^^^^^^^
+
+Like all instruments supported by the Digilent Waveforms library, the |DigitalOut| instrument provides :py:meth:`reset() <pydwf.core.api.digital_out.DigitalOut.reset>`, :py:meth:`configure() <pydwf.core.api.digital_out.DigitalOut.configure>`, and :py:meth:`status() <pydwf.core.api.digital_out.DigitalOut.status>` methods.
+
+The :py:meth:`reset() <pydwf.core.api.digital_out.DigitalOut.reset>` method resets the instrument.
+
+The :py:meth:`configure() <pydwf.core.api.digital_out.DigitalOut.configure>` method is used to explicitly transfer settings to the instrument, and/or to start a configured operation.
+
+The :py:meth:`status() <pydwf.core.api.digital_out.DigitalOut.status>` method returns the current |DwfState:link| of the |DigitalOut| instrument.
+
+.. table:: Instrument control (4 methods)
+
+   +----------------------------------+-----------------+---------------------------------------------------------------------------------+
+   | **control operation**            | **type/unit**   |**methods**                                                                      |
+   +----------------------------------+-----------------+---------------------------------------------------------------------------------+
+   | reset instrument                 | *n/a*           | :py:meth:`reset()         <pydwf.core.api.digital_out.DigitalOut.reset>`        |
+   +----------------------------------+-----------------+---------------------------------------------------------------------------------+
+   | configure instrument             | *n/a*           | :py:meth:`configure()     <pydwf.core.api.digital_out.DigitalOut.configure>`    |
+   +----------------------------------+-----------------+---------------------------------------------------------------------------------+
+   | request instrument status        | |DwfState:link| | :py:meth:`status()        <pydwf.core.api.digital_out.DigitalOut.status>`       |
+   +----------------------------------+-----------------+---------------------------------------------------------------------------------+
+   | request instrument output status | *unknown*       | :py:meth:`statusOutput()  <pydwf.core.api.digital_out.DigitalOut.statusOutput>` |
+   +----------------------------------+-----------------+---------------------------------------------------------------------------------+
+
+Channel count
+^^^^^^^^^^^^^
+
+This method returns the number of digital output channels.
+
+.. table:: Channel count (1 method)
+
+   +---------------+---------------+------------------------------------------------------------------+
+   | **property**  | **type/unit** | **method**                                                       |
+   +---------------+---------------+------------------------------------------------------------------+
+   | channel count | int           | :py:meth:`count() <pydwf.core.api.digital_out.DigitalOut.count>` |
+   +---------------+---------------+------------------------------------------------------------------+
+
+Instrument-level state machine settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These settings determine the duration of the |Wait:link| and |Running:link| states, how many times the Wait/Running cycle should be repeated, and whether a trigger must precede each Wait/Running cycle.
+
+.. table:: State machine settings (13 methods)
+
+   +--------------------+---------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**        | **type/unit** | **methods**                                                                                                                                                                                                                                                                                                            |
+   +--------------------+---------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | wait duration      | float [s]     | :py:meth:`waitInfo()   <pydwf.core.api.digital_out.DigitalOut.waitInfo>`                , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.waitSet>`          , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.waitGet>`                                                                               |
+   +--------------------+---------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | run duration       | float [s]     | :py:meth:`runInfo()    <pydwf.core.api.digital_out.DigitalOut.runInfo>`                 , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.runSet>`           , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.runGet>`    , :py:meth:`–Status() <pydwf.core.api.digital_out.DigitalOut.runStatus>`    |
+   +--------------------+---------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | repeat trigger     | bool          | :py:meth:`repeatTriggerSet()  <pydwf.core.api.digital_out.DigitalOut.repeatTriggerSet>` , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.repeatTriggerGet>`                                                                                                                                                   |
+   +--------------------+---------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | repeat count       | int [-]       | :py:meth:`repeatInfo() <pydwf.core.api.digital_out.DigitalOut.repeatInfo>`              , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.repeatSet>`        , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.repeatGet>` , :py:meth:`–Status() <pydwf.core.api.digital_out.DigitalOut.repeatStatus>` |
+   +--------------------+---------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Trigger configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+These settings configure the instrument trigger.
+
+.. table:: Trigger configuration (5 methods)
+
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**    | **type/unit**           | **methods**                                                                                                                                                                                                                                        |
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger source | |DwfTriggerSource:link| | :py:meth:`triggerSourceInfo() <pydwf.core.api.digital_out.DigitalOut.triggerSourceInfo>` , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.triggerSourceSet>` , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.triggerSourceGet>` |
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger slope  | |DwfTriggerSlope:link|  | :py:meth:`triggerSlopeSet()   <pydwf.core.api.digital_out.DigitalOut.triggerSlopeSet>`   , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.triggerSlopeGet>`                                                                               |
+   +----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. note::
+
+   The :py:meth:`triggerSourceInfo() <pydwf.core.api.digital_out.DigitalOut.triggerSourceInfo>` method is obsolete. Use the generic |DwfDevice.triggerInfo:link| method instead.
+
+Output settings
+^^^^^^^^^^^^^^^
+
+These settings determine the output behavior.
+
+.. table:: Output settings (11 methods)
+
+   +--------------+----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**  | **type/unit**              | **methods**                                                                                                                                                                                                            |
+   +--------------+----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | enable       | bool                       | :py:meth:`enableSet()  <pydwf.core.api.digital_out.DigitalOut.enableSet>`  , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.enableGet>`                                                                       |
+   +--------------+----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | output       | |DwfDigitalOutOutput:link| | :py:meth:`outputInfo() <pydwf.core.api.digital_out.DigitalOut.outputInfo>` , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.outputSet>` , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.outputGet>` |
+   +--------------+----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | type         | |DwfDigitalOutType:link|   | :py:meth:`typeInfo()   <pydwf.core.api.digital_out.DigitalOut.typeInfo>`   , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.typeSet>`   , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.typeGet>`   |
+   +--------------+----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | idle         | |DwfDigitalOutIdle:link|   | :py:meth:`idleInfo()   <pydwf.core.api.digital_out.DigitalOut.idleInfo>`   , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.idleSet>`   , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.idleGet>`   |
+   +--------------+----------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Output pattern timing definition
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These settings determine the per-channel output pattern timing in the |Running:link| state.
+
+.. table:: Output pattern definition (14 methods)
+
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**        | **type/unit** | **methods**                                                                                                                                                                                                                                  |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | clock info         | float [Hz]    | :py:meth:`internalClockInfo() <pydwf.core.api.digital_out.DigitalOut.internalClockInfo>`                                                                                                                                                     |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | divider            | int [-]       | :py:meth:`dividerInfo()       <pydwf.core.api.digital_out.DigitalOut.dividerInfo>`       , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.dividerSet>`    , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.dividerGet>`    |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | divider init       | int [-]       | :py:meth:`dividerInitSet()    <pydwf.core.api.digital_out.DigitalOut.dividerSet>`        , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.dividerGet>`                                                                              |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | counter            | int [-]       | :py:meth:`counterInfo()       <pydwf.core.api.digital_out.DigitalOut.counterInfo>`       , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.counterSet>`    , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.counterGet>`    |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | counter init       | int [-]       | :py:meth:`counterInitSet()    <pydwf.core.api.digital_out.DigitalOut.counterSet>`        , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.counterGet>`                                                                              |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | repetitition count | int [-]       | :py:meth:`repetitionInfo()    <pydwf.core.api.digital_out.DigitalOut.repetitionInfo>`    , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.repetitionSet>` , :py:meth:`–Get() <pydwf.core.api.digital_out.DigitalOut.repetitionGet>` |
+   +--------------------+---------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Data playback
+^^^^^^^^^^^^^
+
+These methods provide data upload playback by the |DigitalOut| instrument.
+
+.. table:: Data playback (4 methods)
+
+   +--------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | **operation**            | **type/unit**           | **methods**                                                                                                                                |
+   +--------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | data upload              | *complicated*           | :py:meth:`dataInfo() <pydwf.core.api.digital_out.DigitalOut.dataInfo>` , :py:meth:`–Set() <pydwf.core.api.digital_out.DigitalOut.dataSet>` |
+   +--------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | play data upload         | bit string              | :py:meth:`playDataSet() <pydwf.core.api.digital_out.DigitalOut.playDataSet>`                                                               |
+   +--------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+   | play rate                | float [Hz]              | :py:meth:`playRateSet() <pydwf.core.api.digital_out.DigitalOut.playRateSet>`                                                               |
+   +--------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+
+
+|DigitalOut| reference
+----------------------
+
+.. autoclass:: pydwf.core.api.digital_out.DigitalOut()
+   :inherited-members:

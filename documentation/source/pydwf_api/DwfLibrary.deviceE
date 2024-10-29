@@ -1,0 +1,45 @@
+.. include:: /substitutions.rst
+
+Device enumeration functionality
+================================
+
+The device enumeration functionality provides a way to enumerate accessible Digilent Waveforms devices, i.e., probe the USB bus and the network to find all Digilent Waveforms devices that can potentially be used.
+
+The enumeration functionality also provides functionality to get basic information for all devices found, such as the device type, hardware revision, and serial number.
+
+Lastly, the enumeration functionality allows user programs to examine |device configurations:link|, which provide a way to optimize the Digilent Waveforms device for a certain task by allocating resources such as buffer memory to certain instruments.
+
+Using the device enumeration functionality
+------------------------------------------
+
+To use the device enumeration functionality you first need to initialize a |DwfLibrary:link| instance. The device enumeration functionality can then be accessed via its |deviceEnum:link| attribute, which is an instance of the |DeviceEnumeration:link| class:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+
+   dwf = DwfLibrary()
+
+   # Enumerate all Digilent Waveforms devices and return the count.
+   device_count = dwf.deviceEnum.enumerateDevices()
+
+   print("Number of Digilent Waveforms devices found:", device_count)
+
+Alternatives to the device enumeration functionality
+----------------------------------------------------
+
+For most users, there is little reason to use the device enumeration API directly. Consider the following alternatives:
+
+* From the command line, it is easy to obtain a list of all Digilent Waveforms devices and their configurations like this:
+
+  .. code-block:: sh
+
+     python -m pydwf list -c
+
+* For Python scripts that want to select a specific device by serial number, or want to select a specific |device configuration:link| while opening the device to maximize the capabilities of a certain instrument (for example, to open the device with the largest possible |AnalogIn| or |AnalogOut| sample buffer sizes), consider using the |pydwf.utilities.openDwfDevice:link| convenience function.
+
+|DeviceEnumeration| reference
+-----------------------------
+
+.. autoclass:: pydwf.core.api.device_enumeration.DeviceEnumeration()
+   :inherited-members:

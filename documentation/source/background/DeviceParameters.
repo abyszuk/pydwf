@@ -1,0 +1,20 @@
+.. include:: /substitutions.rst
+
+Device parameters
+=================
+
+.. todo::
+
+    **This section is currently incomplete.**
+
+    It currently only lists the device parameters. The intention of this section is to provide detailed information on what the settings do for the different Digilent Waveforms devices that exist.
+
+The following device parameters have been defined:
+
+* :py:attr:`DwfDeviceParameter.UsbPower      <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.UsbPower>`
+* :py:attr:`DwfDeviceParameter.LedBrightness <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.LedBrightness>`
+* :py:attr:`DwfDeviceParameter.OnClose       <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.OnClose>`
+* :py:attr:`DwfDeviceParameter.AudioOut      <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.AudioOut>`
+* :py:attr:`DwfDeviceParameter.UsbLimit      <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.UsbLimit>`
+* :py:attr:`DwfDeviceParameter.AnalogOut     <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.AnalogOut>`
+* :py:attr:`DwfDeviceParameter.Frequency     <pydwf.core.auxiliary.enum_types.DwfDeviceParameter.Frequency>`

@@ -1,0 +1,5 @@
+# Ignore the three generated files.
+
+examples.py
+html_docs.py
+pdf_manual.py

@@ -1,0 +1,173 @@
+.. include:: /substitutions.rst
+
+Analog I/O
+==========
+
+The |AnalogIO| API provides two types of analog functionality:
+
+* **Monitoring** of on-board sensors, e.g. for voltages, currents, and temperatures;
+* **Control** of voltage (power) supplies, on Digilent Waveforms devices that support it.
+
+The |AnalogIO| functionality, despite its name, does not overlap with the functionality of the |AnalogIn| and |AnalogOut| instruments. It cannot be used to control the analog signal outputs or to monitor the analog signal inputs.
+
+An exception is that the |AnalogOut| instrument on an Analog Discovery 2 device (and perhaps some others) can be made to control the voltage sources of the device as if they were regular, low bandwidth analog output channels, by selecting an appropriate device configuration when opening the device.
+This feature can be useful in rare cases when a non-constant supply voltage is needed for testing. However, in most cases by far, only a static (constant) voltage is needed, and the easiest way to accomplish that is via the |AnalogIO| API.
+
+Using the Analog I/O functionality
+----------------------------------
+
+To use the |AnalogIO| functionality you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's |AnalogIO| API can now be accessed via its |analogIO:link| attribute, which is an instance of the |AnalogIO:link| class:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+
+       # Get a reference to the device's AnalogIO functionality.
+       analogIO = device.analogIO
+
+       # Use the AnalogIO functionality.
+       analogIO.reset()
+
+|AnalogIO| channels and nodes
+-----------------------------
+
+The quantities that can be monitored and controlled by the |AnalogIO| functionality are organized in *channels*. Each channel can have one or more *nodes*.
+
+A typical example is the *USB Monitor* channel of the Analog Discovery 2 device. It has 3 nodes: *Voltage*, *Current*, and *Temperature*, that can be used to report on these three quantities.
+
+The *USB Monitor* channel is fully passive; its nodes can only be monitored. Other channels have nodes that can also be controlled, for example the *Positive Supply* and *Negative Supply* channels of the Analog Discovery 2. Those channels have two nodes each that can be controlled (*Enabled* and *Voltage*), and one node that can only be monitored (*Current*).
+
+The `AnalogIO.py <https://github.com/sidneycadot/pydwf/blob/master/source/pydwf-examples/AnalogIO.py>`_ example program enumerates the |AnalogIO| channels and nodes of any Digilent Waveforms device; it is recommended to study that program to understand how to use the |AnalogIO| functionality.
+
+Below, by way of example, we show the channels and nodes of three Digilent Waveforms devices: the Analog Discovery 2, the Digital Discovery, and the Analog Discovery Pro.
+
+.. table:: |AnalogIO| channels and nodes of the Analog Discovery 2 device
+   :align: center
+
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   | **channel** | **channel name**  | **ch. label** | **node** | **node name** | **unit** | **node type**                                                                    |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Enable        |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      0      | Positive Supply   |       V+      |     1    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     2    | Current       |    A     | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Enable        |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      1      | Negative Supply   |       V-      |     1    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     2    | Current       |    A     | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      2      | USB Monitor       |       USB     |     1    | Current       |    A     | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     2    | Temperature   |    C     | :py:attr:`Temperature <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Temperature>` |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |      3      | Auxiliary Monitor |       Aux     +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     1    | Current       |    A     | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      4      | Power Supply      |       V+-     |     0    | Limit         |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+
+.. table:: |AnalogIO| channels and nodes of the Digital Discovery device
+   :align: center
+
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   | **channel** | **channel name**  | **ch. label** | **node** | **node name** | **unit** | **node type**                                                                    |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     1    | DINPP         |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     2    | DIOPE         |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      0      | Digital Voltage   |       VDD     |     3    | DIOPP         |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     4    | Drive         |  *n/a*   | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     5    | Slew          |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     6    | Clock         |    Hz    | :py:attr:`Frequency <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Frequency>`     |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |      1      | Voltage Output    |       VIO     +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     1    | Current       |    A     | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     0    | Voltage       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |      2      | USB Monitor       |       USB     +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |     1    | Current       |    A     | :py:attr:`Current <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Current>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+
+
+.. table:: |AnalogIO| channels and nodes of the Analog Discovery Pro (ADP3450) device
+   :align: center
+
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   | **channel** | **channel name**  | **ch. label** | **node** | **node name** | **unit** | **node type**                                                                    |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    0     | Voltage       |          | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   +               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      0      | Digital Voltage   |  DVCC         |    1     | DIOPE         |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   |             |                   +               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    2     | DIOPP         |  *n/a*   | :py:attr:`Enable <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Enable>`           |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    0     | Temperature   |    C     | :py:attr:`Temperature <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Temperature>` |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    1     | VccInt        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    2     | VccAux        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      1      | Zynq              | Zynq          |    3     | VccBRam       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    4     | VccPInt       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    5     | VccPAux       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    6     | VccDDR        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    0     | Temperature   |    C     | :py:attr:`Temperature <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Temperature>` |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    1     | VccInt        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    2     | VccAux        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      2      | ZynqMin           | ZynqMin       |    3     | VccBRam       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    4     | VccPInt       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    5     | VccPAux       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    6     | VccDDR        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    0     | Temperature   |    C     | :py:attr:`Temperature <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Temperature>` |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    1     | VccInt        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    2     | VccAux        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |      3      | ZynqMax           | ZynqMax       |    3     | VccBRam       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    4     | VccPInt       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    5     | VccPAux       |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   |             |                   |               +----------+---------------+----------+----------------------------------------------------------------------------------+
+   |             |                   |               |    6     | VccDDR        |    V     | :py:attr:`Voltage <pydwf.core.auxiliary.enum_types.DwfAnalogIO.Voltage>`         |
+   +-------------+-------------------+---------------+----------+---------------+----------+----------------------------------------------------------------------------------+
+
+.. note::
+
+   Channel 2 (ZynqMin), node 5 of the Analog Discovery Pro device was reported incorrectly in version 3.16.3 of the DWF library. This has been corrected in version 3.17.1.
+
+|AnalogIO| reference
+--------------------
+
+.. autoclass:: pydwf.core.api.analog_io.AnalogIO()
+   :inherited-members:

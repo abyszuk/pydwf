@@ -1,0 +1,35 @@
+Issues with the libdwf code and documentation:
+
+(1) Issues with the C header file 'dwf.h', as delivered with the SDK:
+
+- In dwf.h, function FDwfDigitalInInputOrderSet, parameter 'fDioFirst' is a bool.
+  This type doesn't exist in C, unless 'stdbool.h' is included.
+- There's a bunch of lines in dwf.h with trailing spaces.
+- The comment on the line describing the "dwfercUnknownError" constant is incorrect.
+- In the definition of the DwfAnalogImpedance type constants, Admittance, Conductance, and Susceptance
+  are commented as having unit 'Siemen', which should be "Siemens".
+- typo: DwfAnalogImpedanceSeriesCapactance --> DwfAnalogImpedanceSeriesCapacitance
+- The function 'FDwfAnalogInTriggerHoldOffInfo' has a parameter that is called 'pnStep' rather than 'pnSteps',
+  as is used everywhere else:
+
+    DWFAPI int FDwfAnalogInTriggerHoldOffInfo(HDWF hdwf, double *psecMin, double *psecMax, double *pnStep).
+
+(2) Issues with the documentation, dwfsdk.pdf:
+
+It's pretty incomplete; many details on how the instruments work are omitted.
+
+Here are some concrete, easy-to-fix issues:
+
+- Section 1.2 "the standard c-type bool". "bool" is not a standard C type, Bool_t is.
+- Section 2 "FDwfGetLastError: bad description of "dwfercUnknownError".
+- Section 2 "FDwfParamSet": not all DwfParam values found in the header file are described here.
+- Section 4: not documented: FDwfDeviceEnableSet, FDwfDeviceParamGet, FDwfDeviceParamSet.
+- Section 4: TRIGSRC values High and Low are not documented.
+
+FDwfAnalogIOChannelNodeSetInfo:
+
+Remark:
+
+    The (Maximum - Minimum) / Steps is the step size.
+
+    Probably not true?

@@ -1,0 +1,87 @@
+
+FDwfDigitalInAcquisitionModeInfo:
+
+typos:
+    acqmodeOvers description: "acqmoeSingle" --> "acqmodeSingle"
+    acqmodeSingle1: "withour" -> "without"
+
+
+Mismatches between documentation and the header file
+----------------------------------------------------
+
+The following functions are declared in the header file but are not documented in the PDF:
+
+FDwfEnumInfo
+FDwfAnalogInCounterStatus
+FDwfAnalogOutCustomAMFMEnableSet
+FDwfAnalogOutCustomAMFMEnableGet
+FDwfDigitalOutStatusOutput
+FDwfDigitalInMixedSet (OBSOLETE)
+FDwfAnalogInTriggerSourceInfo (OBSOLETE)
+FDwfAnalogOutTriggerSourceInfo (OBSOLETE)
+FDwfDigitalInTriggerSourceInfo (OBSOLETE)
+FDwfDigitalOutTriggerSourceInfo (OBSOLETE)
+FDwfEnumAnalogInChannels (OBSOLETE)
+FDwfEnumAnalogInBufferSize (OBSOLETE)
+FDwfEnumAnalogInBits (OBSOLETE)
+FDwfEnumAnalogInFrequency (OBSOLETE)
+
+------------------
+
+What does the new "Record2" acquisition mode do?
+
+What do the constants CustomPattern and PlayPattern (FUNC enum) do?
+
+
+12 DWFERC
+ 1 EnumFilter
+ 6 DwfEnumConfigInfo
+ 2 DEVID
+ 3 DEVVER
+25 DwfParam
+26 DwfWindow
+ 5 DwfState
+ 4 TRIGSRC
+10 DwfTriggerSlope
+ 7 ACQMODE
+ 8 FILTER
+27 DwfAnalogCoupling
+ 9 TRIGTYPE
+11 TRIGLEN
+13 FUNC
+16 DwfAnalogOutNode
+17 DwfAnalogOutMode
+18 DwfAnalogOutIdle
+19 DwfDigitalInClockSource
+20 DwfDigitalInSampleMode
+21 DwfDigitalOutOutput
+22 DwfDigitalOutType
+23 DwfDigitalOutIdle
+14 ANALOGIO
+24 DwfAnalogImpedance
+15 DwfDmm
+
+
+=========================================
+
+/* const double */
+DWFAPI int FDwfSpectrumWindow(double *rgdWin, int cdWin, DwfWindow iWindow, const double vBeta, double *vNEBW);
+
+=======================================
+
+Description of FdwfAnalogOutNodeEnableSet -- "selectects" --> "selects"
+
+Seems to do specify modulation, but didn't we have different nodes for that?
+
+Why do we have a mode now, instead of a flag?
+
+The documentation of the fMode parameter (called fEnable) is unclear.
+
+In Set/Get: update the "fEnable" parameter name to "fMode".
+
+Consider using an Enum.
+
+====================
+
+FDwfDigitalInInputOrderSet : parameter "dio_first" is now an int instead of a bool (good!), but the documentation still
+refers to false and true values.

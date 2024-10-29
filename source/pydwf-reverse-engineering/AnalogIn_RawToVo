@@ -1,0 +1,187 @@
+#! /usr/bin/env python3
+
+
+import argparse
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+from pydwf import (DwfLibrary, DwfAnalogOutNode, DwfAnalogOutFunction, DwfAcquisitionMode, DwfTriggerSource,
+            DwfTriggerType, DwfTriggerSlope, DwfState, DwfAnalogInFilter)
+
+def configure_analog_output(analogOut, analog_out_frequency, analog_out_amplitude, analog_out_offset):
+    """Configure a cosine signal on channel 1, and a sine signal on channel 2."""
+
+    CH1 = 0 # This channel will carry a 'cosine' (i.e., precede channel 2 by 90 degrees).
+    CH2 = 1 # This channel will carry a 'sine'.
+
+    node = DwfAnalogOutNode.Carrier
+
+    analogOut.reset(-1)  # Reset both channels.
+
+    analogOut.nodeEnableSet   (CH1, node, True)
+    analogOut.nodeFunctionSet (CH1, node, DwfAnalogOutFunction.Sine)
+    analogOut.nodeFrequencySet(CH1, node, analog_out_frequency)
+    analogOut.nodeAmplitudeSet(CH1, node, analog_out_amplitude)
+    analogOut.nodeOffsetSet   (CH1, node, analog_out_offset)
+    analogOut.nodePhaseSet    (CH1, node, 90.0)
+
+    analogOut.nodeEnableSet   (CH2, node, True)
+    analogOut.nodeFunctionSet (CH2, node, DwfAnalogOutFunction.Sine)
+    analogOut.nodeFrequencySet(CH2, node, analog_out_frequency)
+    analogOut.nodeAmplitudeSet(CH2, node, analog_out_amplitude)
+    analogOut.nodeOffsetSet   (CH2, node, analog_out_offset)
+    analogOut.nodePhaseSet    (CH2, node, 0.0)
+
+    # Synchronize second channel to first channel. This ensures that they will start simultaneously.
+    analogOut.masterSet(CH2, CH1)
+
+    # Start output on first (and second) channel.
+    analogOut.configure(CH1, True)
+
+
+def run_test(analogIn, sample_frequency, signal_frequency):
+    """Set up analog output, configure the analog input, and perform repeated acquisitions and present them graphically."""
+
+    # Calculate number of samples for each acquisition.
+    num_samples = analogIn.bufferSizeGet()
+
+    record_length = num_samples / sample_frequency
+
+    trigger_position = -0.5 * record_length # Position of first sample relative to the trigger. Setting it to -0.5 * record_length puts the trigger halfway the capture window.
+    trigger_level    = 0.0                  # Trigger level in Volts.
+
+    # Configure analog input instrument acquisition.
+
+    CH1 = 0
+    CH2 = 1
+
+    channels = (CH1, CH2)
+
+    for channel_index in channels:
+        analogIn.channelEnableSet(channel_index, True)
+        analogIn.channelFilterSet(channel_index, DwfAnalogInFilter.Decimate)
+
+        #analogIn.channelOffsetSet(channel_index, 0.3 + 0.2 * channel_index)
+        #analogIn.channelAttenuationSet(channel_index, 17.3 + 2.9 * channel_index)
+        #analogIn.channelBandwidthSet(channel_index, 117.3 + 22.9 * channel_index)
+        #analogIn.channelImpedanceSet(channel_index, 127.3 + 21.9 * channel_index)
+
+        print("@@ ", channel_index, analogIn.channelOffsetGet(channel_index))
+        print("@@ ", channel_index, analogIn.channelAttenuationGet(channel_index))
+
+    analogIn.channelOffsetSet (CH1, 2.5)
+
+    analogIn.acquisitionModeSet(DwfAcquisitionMode.Single)
+    analogIn.frequencySet      (sample_frequency)
+
+    # Set up trigger for the analog input instrument.
+    # We will trigger on the rising transitions of CH2 (the "cosine" channel) through 0V.
+    analogIn.triggerSourceSet(DwfTriggerSource.DetectorAnalogIn)
+    analogIn.triggerChannelSet(CH2)
+    analogIn.triggerTypeSet(DwfTriggerType.Edge)
+    analogIn.triggerConditionSet(DwfTriggerSlope.Rise)
+    analogIn.triggerPositionSet(trigger_position)
+    analogIn.triggerLevelSet(trigger_level)
+    analogIn.triggerHysteresisSet(0.010) # Configure a small amount of hysteresis to make sure we only see rising edges.
+
+    # Outer loop: perform repeated acquisitions.
+    acquisition_nr = 0
+
+    while True:
+
+        acquisition_nr += 1 # Increment acquisition number.
+
+        print("[{}] Recording {} samples ...".format(acquisition_nr, num_samples))
+
+        # Inner loop: single acquisition, receive data from AnalogIn instrument and display it.
+
+        analogIn.configure(False, True)  # Start acquisition sequence.
+
+        while True:
+
+            status = analogIn.status(True)
+
+            if status == DwfState.Done:
+                # We received the last of the record samples.
+                # Note the time, in seconds, of the first valid sample, and break from the acquisition loop.
+                time_of_first_sample = analogIn.triggerPositionStatus()
+                break
+
+        samples_raw = np.vstack([analogIn.statusData16(channel_index, 0, num_samples) for channel_index in channels]).transpose()
+        samples     = np.vstack([analogIn.statusData  (channel_index,    num_samples) for channel_index in channels]).transpose()
+
+        # Calculate sample time of each of the samples.
+        t = time_of_first_sample + np.arange(len(samples)) / sample_frequency
+
+        plt.clf()
+
+        plt.subplot(211)
+
+        plt.grid()
+
+        plt.title("AnalogIn acquisition #{}\n{} samples ({} seconds at {} Hz)\nsignal frequency: {} Hz".format(
+            acquisition_nr, num_samples, record_length, sample_frequency, signal_frequency))
+
+        plt.xlabel("time relative to trigger [s]\ntriggering on rising zero transition of channel 2")
+
+        plt.ylabel("signal [V]")
+
+        plt.xlim(-0.55 * record_length, 0.55 * record_length)
+
+        plt.ylim(-10.0, 10.0)
+
+        plt.axvline(0.0, c='r')
+        plt.axhline(trigger_level, c='r')
+
+        plt.plot(t, samples[:, CH1], color='orange', label="channel 1 (cos)")
+        plt.plot(t, samples[:, CH2], color='blue'  , label="channel 2 (sin)")
+
+        plt.legend(loc="upper right")
+
+        plt.subplot(212)
+
+        conv_ch1 = analogIn.channelOffsetGet(CH1) + analogIn.channelRangeGet(CH1) * samples_raw[:, CH1] / 65536.0
+        conv_ch2 = analogIn.channelOffsetGet(CH2) + analogIn.channelRangeGet(CH2) * samples_raw[:, CH2] / 65536.0
+
+        err_ch1 = conv_ch1 - samples[:, CH1]
+        err_ch2 = conv_ch2 - samples[:, CH2]
+
+        plt.plot(t, err_ch1, color='orange', label="channel 1 (cos)")
+        plt.plot(t, err_ch2, color='blue'  , label="channel 2 (sin)")
+
+        plt.pause(1e-3)
+
+        if len(plt.get_fignums()) == 0:
+            # User has closed the window, finish.
+            break
+
+def main():
+
+    parser = argparse.ArgumentParser(description="Demonstrate analog input recording with triggering.")
+
+    parser.add_argument("--sample-frequency", "-fs" , type=float, default=100000.0, help="Sample frequency, in samples per second.")
+
+    args = parser.parse_args()
+
+    dwf = DwfLibrary()
+
+    with dwf.device.open(-1) as device:
+
+        analogOut = device.analogOut
+        analogIn  = device.analogIn
+
+        analog_out_frequency = args.sample_frequency / analogIn.bufferSizeGet() * 5 # We want to see 5 full cycles in the acquisition window.
+        analog_out_amplitude = 2.5                    # Signal amplitude in Volt. The AnalogOut instrument can do 5 Vpp, so 2.5 V amplitude is maximum.
+        analog_out_offset    = 0.0                    # Signal offset in Volt.
+
+        print("Configuring analog output signals ({} Hz) ...".format(analog_out_frequency))
+
+        configure_analog_output(analogOut, analog_out_frequency, analog_out_amplitude, analog_out_offset)
+
+        time.sleep(2.0)  # Wait for a bit to ensure the stability of the analog output signals.
+
+        run_test(analogIn, args.sample_frequency, analog_out_frequency)
+
+if __name__ == "__main__":
+    main()

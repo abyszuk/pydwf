@@ -1,0 +1,26 @@
+
+* Make sure the entire API is covered.
+  - SPI
+  - SWD
+
+* Add several standardized annotations to methods:
+  - Not documented in the PDF.
+  - Not entirely understood.
+  - Only applicable to device xxx.
+  - Not applicable to device xxx.
+
+* Go over all APIs to see if the formatting is good.
+
+* Add "utilities.configuration" routines.
+  - Add them to examples.
+
+* Add "protocols" level.
+  - Add deprecation warnings to direct access.
+
+* Add examples
+
+* Add behavioral checks
+
+* Add undocumented methods and routines page?
+
+* Add "thoughts on the library" page?

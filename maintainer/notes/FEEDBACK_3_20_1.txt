@@ -1,0 +1,46 @@
+
+################
+
+Only function in "dwf.h" where the * indicating a pointer associates to the preceding type:
+
+DWFAPI int FDwfAnalogInChannelCounts(HDWF hdwf, int* pcReal, int* pcFilter, int* pcTotal);
+
+################
+
+The following function prototypes are in the header file but not documented in the reference manual:
+
+FDwfEnumInfo
+FDwfAnalogInChannelCounts
+FDwfAnalogOutCustomAMFMEnableSet
+FDwfAnalogOutCustomAMFMEnableGet
+FDwfDigitalInStatusCompress
+FDwfDigitalInStatusCompressed
+FDwfDigitalInStatusCompressed2
+FDwfDigitalOutStatusOutput
+FDwfDigitalInMixedSet (OBSOLETE)
+FDwfAnalogInTriggerSourceInfo (OBSOLETE)
+FDwfAnalogOutTriggerSourceInfo (OBSOLETE)
+FDwfDigitalInTriggerSourceInfo (OBSOLETE)
+FDwfDigitalOutTriggerSourceInfo (OBSOLETE)
+FDwfEnumAnalogInChannels (OBSOLETE)
+FDwfEnumAnalogInBufferSize (OBSOLETE)
+FDwfEnumAnalogInBits (OBSOLETE)
+FDwfEnumAnalogInFrequency (OBSOLETE)
+
+################
+
+In dwf.h, "DEVID" has no value for the Analog Discovery 3.
+
+################
+
+AnalogIn: How does analog in filtering work?
+DigitalIn: How does digital in compression work?
+
+##############
+
+Descriptions of the following functions is not correct in dwfdwk.pdf (copy/paste errors)
+
+FDwfDigitalIOPullSet
+FDwfDigitalIOPullGet
+FDwfDigitalIODriveSet
+FDwfDigitalIODriveGet -- also has wrong signature in the focumentation.

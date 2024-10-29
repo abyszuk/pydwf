@@ -1,0 +1,27 @@
+.. include:: /substitutions.rst
+
+Signal processing functionality
+===============================
+
+The signal processing functionality provides several standard functions for processing digitized analog signals.
+
+
+Using the signal processing functionality
+-----------------------------------------
+
+To use the signal processing functionality you first need to initialize a |DwfLibrary:link| instance. The signal processing functionality can then be accessed via its |spectrum:link| attribute, which is an instance of the |Spectrum:link| class:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary, DwfWindow
+
+   dwf = DwfLibrary()
+
+   # Make an 11-element Hamming window.
+   (hamming_window, noise_equivalent_bandwidth) = dwf.spectrum.window(11, DwfWindow.Hamming)
+
+|Spectrum| reference
+--------------------
+
+.. autoclass:: pydwf.core.api.spectrum.Spectrum()
+   :inherited-members:

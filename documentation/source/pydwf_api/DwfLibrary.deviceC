@@ -1,0 +1,42 @@
+.. include:: /substitutions.rst
+
+Device control functionality
+============================
+
+The device control functionality provides a way to open specific Digilent Waveforms devices, and to close all previously opened devices. It is complemented by the methods provided be the |DwfDevice:link| class.
+
+Using the device control functionality
+--------------------------------------
+
+To use the device control functionality you first need to initialize a |DwfLibrary:link| instance. The device control functionality can then be accessed via its |deviceControl:link| attribute, which is an instance of the |DeviceControl:link| class:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+
+   dwf = DwfLibrary()
+
+   # Open the first available Digilent Waveforms device, and close it immediately.
+   device = dwf.deviceControl.open(-1)
+   device.close()
+
+Alternatives to the device control functionality
+------------------------------------------------
+
+For most users, there is little reason to use the device control API directly. Consider the following alternatives:
+
+* The |DeviceControl.open:link| method is occasionally useful, but the |pydwf.utilities.openDwfDevice:link|
+  convenience function provides a more powerful alternative.
+
+* The |DeviceControl.closeAll:link| method is not recommended for general use. Devices can and should be
+  closed individually, either by calling their |DwfDevice.close:link| method explicitly, or by using their
+  *context manager* feature.
+
+* The device control API of the underlying C library supports several more functions that work on a previously
+  opened Digilent Waveforms device. In |pydwf|, these functions are available as methods of the |DwfDevice:link| class.
+
+|DeviceControl| reference
+-------------------------
+
+.. autoclass:: pydwf.core.api.device_control.DeviceControl()
+   :inherited-members:

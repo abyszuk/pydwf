@@ -1,0 +1,383 @@
+.. include:: /substitutions.rst
+
+Analog input instrument
+=======================
+
+The |AnalogIn| instrument provides multiple channels of analog input on devices that support it, such as the Analog Discovery and the Analog Discovery 2. It provides the functionality normally associated with a stand-alone oscilloscope.
+
+.. todo::
+
+    **This section is missing some important information:**
+
+    - A discussion about the different acquisition modes;
+    - A description of how the status variables behave in the different acquisition modes;
+    - A discussion of the precise meaning of all settings.
+
+Using the analog input instrument
+---------------------------------
+
+To use the |AnalogIn| instrument you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's |AnalogIn| instrument can now be accessed via its |analogIn:link| attribute, which is an instance of the |AnalogIn:link| class.
+
+For example:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+
+       # Get a reference to the device's AnalogIn instrument.
+       analogIn = device.analogIn
+
+       # Use the AnalogIn instrument.
+       analogIn.reset()
+
+The |AnalogIn| state machine
+----------------------------
+
+The |AnalogIn| instrument is controlled by a state machine. As a measurement is prepared and executed, the instrument goes through its various states.
+
+The current state of the instrument is returned by the :py:meth:`analogIn.status() <pydwf.core.api.analog_in.AnalogIn.status>` method, and is of type |DwfState:link|.
+
+The figure below shows the states used by the |AnalogIn| instrument and the transitions between them:
+
+.. graphviz::
+   :caption: States of the |AnalogIn| instrument
+   :align: center
+
+   digraph {
+
+      rankdir=LR;
+
+      // nodes
+      node         [color="#243f60"; fillcolor="#4581bd"; style="filled"];
+
+      st_ready     [label="Ready"];
+      st_configure [label="Configure"];
+      st_prefill   [label="Prefill"];
+      st_armed     [label="Armed"];
+      st_running   [label="Running"];
+      st_done      [label="Done"];
+
+      // edges
+      edge         [color="#4579b8"];
+
+      st_ready -> st_configure [label="Reconfigure?", style="dashed"];
+      st_configure -> st_ready [style="dashed"];
+      st_ready -> st_prefill [label="Start?"];
+      st_configure -> st_prefill[label="Start?", style="dashed"];
+      st_prefill -> st_armed;
+      st_armed -> st_running[label="Trigger?"];
+      st_running -> st_done;
+   }
+
+The |AnalogIn| states are used as follows:
+
+1. |Ready:link|
+
+   In this preparatory state, instrument settings can be changed that specify the behavior of the instrument in the coming measurement. If the auto-configure setting of the device is enabled (the default), setting changes will automatically be transferred to the device. If not, an explicit call to the :py:meth:`analogIn.configure() <pydwf.core.api.analog_in.AnalogIn.configure>` method with the *reconfigure* parameter set to True is needed to transfer updated settings to the device.
+
+   Once the instrument is properly configured, an acquisition can be started by calling the :py:meth:`analogIn.configure() <pydwf.core.api.analog_in.AnalogIn.configure>` with the *start* parameter set to True. This will start the first stage of the acquisition by entering the |Prefill:link| state.
+
+2. |Config:link|
+
+   This state is entered momentarily when a setting is being pushed to the device, either by changing the setting while auto-configure is enabled, or by an explicit call to :py:meth:`analogIn.configure() <pydwf.core.api.analog_in.AnalogIn.configure>` with the *reconfigure* parameter set to True. The settings inside the device will be updated, and the device will immediately thereafter go back to the |Ready:link| state, unless the *start* parameter to :py:meth:`analogIn.configure() <pydwf.core.api.analog_in.AnalogIn.configure>` was set to True.
+
+3. |Prefill:link|
+
+   This state marks the beginning of an acquisition sequence. During the |Prefill:link| state, input samples will be acquired until enough samples are buffered for the instrument to be ready to react to a trigger.
+
+   This state is only relevant if the trigger position has been configured in such a way that the measurement must also yield sample values prior to the moment of triggering.
+
+   Once enough samples are received for the instrument to be able to react to a trigger, it proceeds to the |Armed:link| state.
+
+4. |Armed:link|
+
+   In this state the instrument continuously captures samples and monitors the configured trigger input. As soon as a trigger event is detected, the instrument proceeds to the |Running:link| state.
+
+5. |Running:link|
+
+   In this state the instrument continues capturing samples until the acquisition is complete. Completion is reached when the acquisition buffer has filled up in :py:attr:`Single <pydwf.core.auxiliary.enum_types.DwfAcquisitionMode.Single>` mode, or when the recording length has been reached in :py:attr:`Record <pydwf.core.auxiliary.enum_types.DwfAcquisitionMode.Record>` mode. When completion is reached, the instrument proceeds to the |Done:link| state.
+
+6. |Done:link|
+
+   This state indicates that a measurement has finished.
+
+   From this state, it is possible to go back to the |Ready:link| state by performing any kind of configuration, or to start a new acquisition with the same settings.
+
+|AnalogIn| instrument API overview
+----------------------------------
+
+With 101 methods, the |AnalogIn| instrument is the most complicated instrument supported by the Digilent Waveforms API. Below, we categorize all its methods and shortly introduce them. Detailed information on all methods can be found in the |AnalogIn:link| class reference that follows.
+
+.. instrument control                      3
+   status variables                        7
+   status data retrieval                   5
+   acquisition configuration              15
+   channel count                           2
+   channel configuration                  21
+   instrument trigger configuration       10
+   force instrument trigger                1
+   trigger detector configuration         27
+   counter functionality                   4
+   sampling clock configuration            6 +
+   -------------------------------------------
+   total number of methods               101
+
+Instrument control
+^^^^^^^^^^^^^^^^^^
+
+Like all instruments supported by the Digilent Waveforms library, the |AnalogIn| instrument provides :py:meth:`reset() <pydwf.core.api.analog_in.AnalogIn.reset>`, :py:meth:`configure() <pydwf.core.api.analog_in.AnalogIn.configure>`, and :py:meth:`status() <pydwf.core.api.analog_in.AnalogIn.status>` methods.
+
+The :py:meth:`reset() <pydwf.core.api.analog_in.AnalogIn.reset>` method resets the instrument.
+
+The :py:meth:`configure() <pydwf.core.api.analog_in.AnalogIn.configure>` method is used to explicitly transfer settings to the instrument, and/or to start a configured operation.
+
+The :py:meth:`status() <pydwf.core.api.analog_in.AnalogIn.status>` method retrieves status information from the instrument. Optionally, it can also retrieve bulk data, i.e., analog signal and noise samples. The method returns the current |DwfState:link| of the |AnalogIn| instrument; to obtain more elaborate status information, one of the methods in the next two sections must be used.
+
+.. table:: Instrument control (3 methods)
+
+   +----------------------------+-----------------+----------------------------------------------------------------------+
+   | **control operation**      | **type/unit**   |**methods**                                                           |
+   +----------------------------+-----------------+----------------------------------------------------------------------+
+   | reset instrument           | *n/a*           | :py:meth:`reset()     <pydwf.core.api.analog_in.AnalogIn.reset>`     |
+   +----------------------------+-----------------+----------------------------------------------------------------------+
+   | configure instrument       | *n/a*           | :py:meth:`configure() <pydwf.core.api.analog_in.AnalogIn.configure>` |
+   +----------------------------+-----------------+----------------------------------------------------------------------+
+   | request instrument status  | |DwfState:link| | :py:meth:`status()    <pydwf.core.api.analog_in.AnalogIn.status>`    |
+   +----------------------------+-----------------+----------------------------------------------------------------------+
+
+Status variables
+^^^^^^^^^^^^^^^^
+
+When executing the :py:meth:`status() <pydwf.core.api.analog_in.AnalogIn.status>` method, status information is transferred from the |AnalogIn| instrument to the PC. Several status variables can then be retrieved by using the methods listed below.
+
+.. commented out
+
+    The behavior of status variables in the different acquisition modes
+    -------------------------------------------------------------------
+
+.. table:: Status variables (7 methods)
+
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | **status value**            | **type/unit**   | **method**                                                                               |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | timestamp                   | tuple [s]       | :py:meth:`statusTime()          <pydwf.core.api.analog_in.AnalogIn.statusTime>`          |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | most recent sample value    | float [V]       | :py:meth:`statusSample()        <pydwf.core.api.analog_in.AnalogIn.statusSample>`        |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | auto-triggered flag         | bool            | :py:meth:`statusAutoTriggered() <pydwf.core.api.analog_in.AnalogIn.statusAutoTriggered>` |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | samples left in acquisition | int [samples]   | :py:meth:`statusSamplesLeft()   <pydwf.core.api.analog_in.AnalogIn.statusSamplesLeft>`   |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | samples valid count         | int [samples]   | :py:meth:`statusSamplesValid()  <pydwf.core.api.analog_in.AnalogIn.statusSamplesValid>`  |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | buffer write index          | int [samples]   | :py:meth:`statusIndexWrite()    <pydwf.core.api.analog_in.AnalogIn.statusIndexWrite>`    |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+   | recording status            | tuple [samples] | :py:meth:`statusRecord()        <pydwf.core.api.analog_in.AnalogIn.statusRecord>`        |
+   +-----------------------------+-----------------+------------------------------------------------------------------------------------------+
+
+Status data retrieval
+^^^^^^^^^^^^^^^^^^^^^
+
+Executing the :py:meth:`status() <pydwf.core.api.analog_in.AnalogIn.status>` method with the *read_data* parameter set to True transfers captured samples from the instrument to the PC. The samples can then be retrieved using the methods listed here.
+
+.. table:: Status data retrieval (5 methods)
+
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+   | **status data**                                   | **type/unit** | **methods**                                                                |
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+   | get sample data (without buffer offset)           | float [V]     | :py:meth:`statusData()   <pydwf.core.api.analog_in.AnalogIn.statusData>`   |
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+   | get sample data (with buffer offset)              | float [V]     | :py:meth:`statusData2()  <pydwf.core.api.analog_in.AnalogIn.statusData2>`  |
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+   | get sample data (raw samples, with buffer offset) | int [-]       | :py:meth:`statusData16() <pydwf.core.api.analog_in.AnalogIn.statusData16>` |
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+   | get sample noise (without buffer offset)          | float [V]     | :py:meth:`statusNoise()  <pydwf.core.api.analog_in.AnalogIn.statusNoise>`  |
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+   | get sample noise (with offset)                    | float [V]     | :py:meth:`statusNoise2() <pydwf.core.api.analog_in.AnalogIn.statusNoise2>` |
+   +---------------------------------------------------+---------------+----------------------------------------------------------------------------+
+
+Acquisition settings
+^^^^^^^^^^^^^^^^^^^^
+
+The following methods are used to get and set channel-independent configuration values related to acquisition, and to obtain information about their possible values.
+
+.. table:: Acquisition settings (15 methods)
+
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**             | **type/unit**             |  **methods**                                                                                                                                                                                                                                   |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | ADC sample resolution   | int [bits]                | :py:meth:`bitsInfo()            <pydwf.core.api.analog_in.AnalogIn.bitsInfo>`                                                                                                                                                                  |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | record length           | float [s]                 | :py:meth:`recordLengthSet()     <pydwf.core.api.analog_in.AnalogIn.recordLengthSet>`     , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.recordLengthGet>`                                                                               |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | sample frequency        | float [Hz]                | :py:meth:`frequencyInfo()       <pydwf.core.api.analog_in.AnalogIn.frequencyInfo>`       , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.frequencySet>`       , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.frequencyGet>`       |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | sample buffer size      | int [samples]             | :py:meth:`bufferSizeInfo()      <pydwf.core.api.analog_in.AnalogIn.bufferSizeInfo>`      , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.bufferSizeSet>`      , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.bufferSizeGet>`      |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | noise buffer size       | int [samples]             | :py:meth:`noiseSizeInfo()       <pydwf.core.api.analog_in.AnalogIn.noiseSizeInfo>`       , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.noiseSizeSet>`       , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.noiseSizeGet>`       |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | acquisition mode        | |DwfAcquisitionMode:link| | :py:meth:`acquisitionModeInfo() <pydwf.core.api.analog_in.AnalogIn.acquisitionModeInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.acquisitionModeSet>` , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.acquisitionModeGet>` |
+   +-------------------------+---------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. commented out
+
+    |AnalogIn| acquisition modes
+    ----------------------------
+
+    The table below lists the acquisition modes supported by the Analog Discovery 2, as reported by the :py:meth:`AnalogIn.acquisitionModeInfo` method:
+
+    +------------------------+----------------------------------------------------------+
+    | **acquisition mode**   | **description**                                          |
+    +------------------------+----------------------------------------------------------+
+    | *Single*               | Record a single buffer worth of data.                    |
+    +------------------------+----------------------------------------------------------+
+    | *ScanShift*            | (tbw)                                                    |
+    +------------------------+----------------------------------------------------------+
+    | *ScanScreen*           | (tbw)                                                    |
+    +------------------------+----------------------------------------------------------+
+    | *Record*               | Record for a pre-determined run length, or indefinitely. |
+    +------------------------+----------------------------------------------------------+
+
+Channel count
+^^^^^^^^^^^^^
+
+This method returns the number of analog input channels.
+
+.. table:: Channel count (2 methods)
+
+   +-------------------------------------------------+---------------+-----------------------------------------------------------------------------+
+   | **operation**                                   | **type/unit** | **method**                                                                  |
+   +-------------------------------------------------+---------------+-----------------------------------------------------------------------------+
+   | channel count                                   | int           | :py:meth:`channelCount() <pydwf.core.api.analog_in.AnalogIn.channelCount>`  |
+   | channel count, distinguish real/filter channels | int           | :py:meth:`channelCount() <pydwf.core.api.analog_in.AnalogIn.channelCounts>` |
+   +-------------------------------------------------+---------------+-----------------------------------------------------------------------------+
+
+Channel configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+The following methods are used to get and set channel-dependent configuration values, and to obtain information about their possible values.
+
+.. table:: Channel configuration (21 methods)
+
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**         | **type/unit**            | **methods**                                                                                                                                                                                                                                                                                                                    |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel enable      | bool                     | :py:meth:`channelEnableSet()      <pydwf.core.api.analog_in.AnalogIn.channelEnableSet>`      , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelEnableGet>`                                                                                                                                                          |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel filter      | |DwfAnalogInFilter:link| | :py:meth:`channelFilterInfo()     <pydwf.core.api.analog_in.AnalogIn.channelFilterInfo>`     , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.channelFilterSet>`      , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelFilterGet>`                                                                            |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel range       | float [V]                | :py:meth:`channelRangeInfo()      <pydwf.core.api.analog_in.AnalogIn.channelRangeInfo>`      , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.channelRangeSet>`       , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelRangeGet>` , :py:meth:`–Steps() <pydwf.core.api.analog_in.AnalogIn.channelRangeSteps>` |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel offset      | float [V]                | :py:meth:`channelOffsetInfo()     <pydwf.core.api.analog_in.AnalogIn.channelOffsetInfo>`     , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.channelOffsetSet>`      , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelOffsetGet>`                                                                            |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel attenuation | float [-]                | :py:meth:`channelAttenuationSet() <pydwf.core.api.analog_in.AnalogIn.channelAttenuationSet>` , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelAttenuationGet>`                                                                                                                                                     |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel bandwidth   | float [Hz]               | :py:meth:`channelBandwidthSet()   <pydwf.core.api.analog_in.AnalogIn.channelBandwidthSet>`   , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelBandwidthGet>`                                                                                                                                                       |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel impedance   | float [Ohms]             | :py:meth:`channelImpedanceSet()   <pydwf.core.api.analog_in.AnalogIn.channelImpedanceSet>`   , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelImpedanceGet>`                                                                                                                                                       |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | channel coupling    | |DwfAnalogCoupling:link| | :py:meth:`channelCouplingInfo()   <pydwf.core.api.analog_in.AnalogIn.channelCouplingInfo>`   , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelCouplingSet>`   , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.channelCouplingGet>`                                                                           |
+   +---------------------+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Instrument trigger configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following methods are used to configure the trigger of the |AnalogIn| instrument. The trigger source is fully configurable; the |AnalogIn| instrument can use its own trigger detector for triggering, but it is also possible to use a different trigger source. For that reason, we distinguish between the methods that configure the instrument trigger, and the methods that configure the |AnalogIn| trigger detector that are discussed below.
+
+.. table:: Instrument trigger configuration (10 methods)
+
+   +----------------------+-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**          | **type/unit**           | **methods**                                                                                                                                                                                                                                                                                                                                 |
+   +----------------------+-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger source       | |DwfTriggerSource:link| | :py:meth:`triggerSourceInfo()      <pydwf.core.api.analog_in.AnalogIn.triggerSourceInfo>`      , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerSourceSet>`      , :py:meth:`–Get()   <pydwf.core.api.analog_in.AnalogIn.triggerSourceGet>`                                                                                     |
+   +----------------------+-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger position     | float [s]               | :py:meth:`triggerPositionInfo()    <pydwf.core.api.analog_in.AnalogIn.triggerPositionInfo>`    , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerPositionSet>`    , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerPositionGet>`    , :py:meth:`–Status() <pydwf.core.api.analog_in.AnalogIn.triggerPositionStatus>` |
+   +----------------------+-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger auto-timeout | float [s]               | :py:meth:`triggerAutoTimeoutInfo() <pydwf.core.api.analog_in.AnalogIn.triggerAutoTimeoutInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerAutoTimeoutSet>` , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerAutoTimeoutGet>`                                                                                  |
+   +----------------------+-------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. note::
+
+   The :py:meth:`triggerSourceInfo() <pydwf.core.api.analog_in.AnalogIn.triggerSourceInfo>` method is obsolete. Use the generic |DwfDevice.triggerInfo:link| method instead.
+
+Force instrument trigger
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :py:meth:`triggerForce() <pydwf.core.api.analog_in.AnalogIn.triggerForce>` method can be used to force the |AnalogIn| instrument to start acquiring.
+
+.. table:: Force instrument trigger (1 method)
+
+   +------------------------+---------------+----------------------------------------------------------------------------+
+   | **operation**          | **type/unit** | **method**                                                                 |
+   +------------------------+---------------+----------------------------------------------------------------------------+
+   | force trigger          | *n/a*         | :py:meth:`triggerForce() <pydwf.core.api.analog_in.AnalogIn.triggerForce>` |
+   +------------------------+---------------+----------------------------------------------------------------------------+
+
+Trigger detector configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The |AnalogIn| trigger detector is highly configurable. It has nine different settings that can be queried and set using the methods below.
+
+.. table:: Trigger detector configuration (27 methods)
+
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**              | **type/unit**                            | **methods**                                                                                                                                                                                                                                                                |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger hold-off         | float [s]                                | :py:meth:`triggerHoldOffInfo()         <pydwf.core.api.analog_in.AnalogIn.triggerHoldOffInfo>`         , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerHoldOffSet>`         , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerHoldOffGet>`         |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger type             | |DwfAnalogInTriggerType:link|            | :py:meth:`triggerTypeInfo()            <pydwf.core.api.analog_in.AnalogIn.triggerTypeInfo>`            , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerTypeSet>`            , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerTypeGet>`            |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger channel          | int [-]                                  | :py:meth:`triggerChannelInfo()         <pydwf.core.api.analog_in.AnalogIn.triggerChannelInfo>`         , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerChannelSet>`         , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerChannelGet>`         |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger filter           | |DwfAnalogInFilter:link|                 | :py:meth:`triggerFilterInfo()          <pydwf.core.api.analog_in.AnalogIn.triggerFilterInfo>`          , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerFilterSet>`          , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerFilterGet>`          |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger level            | float [V]                                | :py:meth:`triggerLevelInfo()           <pydwf.core.api.analog_in.AnalogIn.triggerLevelInfo>`           , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerLevelSet>`           , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerLevelGet>`           |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger hysteresis       | float [V]                                | :py:meth:`triggerHysteresisInfo()      <pydwf.core.api.analog_in.AnalogIn.triggerHysteresisInfo>`      , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerHysteresisSet>`      , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerHysteresisGet>`      |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger slope            | |DwfTriggerSlope:link|                   | :py:meth:`triggerConditionInfo()       <pydwf.core.api.analog_in.AnalogIn.triggerConditionInfo>`       , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerConditionSet>`       , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerConditionGet>`       |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger length           | float [s]                                | :py:meth:`triggerLengthInfo()          <pydwf.core.api.analog_in.AnalogIn.triggerLengthInfo>`          , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerLengthSet>`          , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerLengthGet>`          |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | trigger length condition | |DwfAnalogInTriggerLengthCondition:link| | :py:meth:`triggerLengthConditionInfo() <pydwf.core.api.analog_in.AnalogIn.triggerLengthConditionInfo>` , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.triggerLengthConditionSet>` , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.triggerLengthConditionGet>` |
+   +--------------------------+------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Counter functionality
+^^^^^^^^^^^^^^^^^^^^^
+
+.. table:: Counter configuration (4 methods)
+
+   +--------------------------+------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**              | **type/unit**                            | **methods**                                                                                                                                                                                                        |
+   +--------------------------+------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | counter configuration    | float [s], int [-]                       | :py:meth:`counterInfo()    <pydwf.core.api.analog_in.AnalogIn.counterInfo>`  , :py:meth:`–Set() <pydwf.core.api.analog_in.AnalogIn.counterSet>` , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.counterGet>` |
+   | counter status           | float [s], float [Hz], int [-]           | :py:meth:`counterStatus()  <pydwf.core.api.analog_in.AnalogIn.counterStatus>`                                                                                                                                      |
+   +--------------------------+------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Sampling clock configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The |AnalogIn| instrument can use a sampling clock that is different from the internally generated  clock that it would normally use. Three settings determine its behavior.
+
+.. table:: Sampling clock configuration (6 methods)
+
+   +-----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | **setting**     | **type/unit**           | **methods**                                                                                                                                                    |
+   +-----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | sampling source | |DwfTriggerSource:link| | :py:meth:`samplingSourceSet() <pydwf.core.api.analog_in.AnalogIn.samplingSourceSet>` , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.samplingSourceGet>` |
+   +-----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | sampling slope  | |DwfTriggerSlope:link|  | :py:meth:`samplingSlopeSet()  <pydwf.core.api.analog_in.AnalogIn.samplingSlopeSet>`  , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.samplingSlopeGet>`  |
+   +-----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
+   | sampling delay  | float [s]               | :py:meth:`samplingDelaySet()  <pydwf.core.api.analog_in.AnalogIn.samplingDelaySet>`  , :py:meth:`–Get() <pydwf.core.api.analog_in.AnalogIn.samplingDelayGet>`  |
+   +-----------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+|AnalogIn| reference
+--------------------
+
+.. autoclass:: pydwf.core.api.analog_in.AnalogIn()
+   :inherited-members:

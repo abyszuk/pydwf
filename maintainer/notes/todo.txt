@@ -1,0 +1,73 @@
+
+
+(2) Add convenience setters to pydwf.utilities.
+
+    In progress. will just add a few for now.
+
+(3) FDwfDigitalOutPlayDataSet  -- not properly implemented yet.
+
+    (2h)
+
+(4) check examples.
+
+    Did minor changes.
+
+(5) do spell check
+
+    (10 min)
+
+(6) release
+
+    (10 min)
+
+======================================================= *** DONE ***
+
+  - functies aanpassen / toevoegen /testen IN PROGRESS.
+
+
+- overzicht C API updaten voor 3.17.1     DONE.
+
+
++ FDwfAnalogInStatusTime              --- DONE.
++ FDwfAnalogInChannelBandwidthSet     --- DONE.
++ FDwfAnalogInChannelBandwidthGet     --- DONE.
++ FDwfAnalogInChannelImpedanceSet     --- DONE.
++ FDwfAnalogInChannelImpedanceGet     --- DONE.
++ FDwfDigitalInStatusTime             --- DONE.
+
+- uitleg over digital I/O precedence. --- DONE
+
+- updaten stats van de ADPro (beide boot modes)   DONE
+- checken stats van AD2 en DD                     DONE
+
+
++ FDwfDigitalUartPolaritySet          -- fully documented. ADD TO TEST
++ FDwfDigitalSpiIdleSet               -- fully documented. ADD TO TEST
++ FDwfDigitalI2cTimeoutSet            -- fully documented. ADD TO TEST?
++ FDwfAnalogImpedanceStatusWarning    -- fully documented. No test programs use it yet.
++ FDwfDigitalOutPlayRateSet           -- fully documented. No test programs use it yet.
+
++ enums aanpassen                     -- DONE.
+  
+Done.
+
+(2) FDwfEnumStart
+    FDwfEnumStop
+    FDwfEnumInfo
+
+(3) FDwfDeviceOpenEx       TODO: test, document.
+
+  2h
+  done
+
+./maintainer/tools/todo.txt
+
+==== 2-device opening issue, check if still a bug.
+
+  Done. The issue is still present in 3.17.1.
+
+  
+  ======================
+  
+('FDwfDigitalI2cSpyStart', typespec.c_int, [ ('hdwf', typespec.HDWF) ], False)
+('FDwfDigitalI2cSpyStatus', typespec.c_int, [ ('hdwf', typespec.HDWF), ('fStart', typespec.c_int_ptr), ('fStop', typespec.c_int_ptr), ('rgData', typespec.c_unsigned_char_ptr), ('cData', typespec.c_int_ptr), ('iNak', typespec.c_int_ptr) ], False)

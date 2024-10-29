@@ -1,0 +1,44 @@
+.. include:: /substitutions.rst
+
+Digital I/O
+===========
+
+The |DigitalIO| functionality provides low-speed monitoring and control of the same digital I/O pins that can also be controlled by the more powerful |DigitalIn| and |DigitalOut| instruments. The API provided here is much simpler to use, but it can only accommodate use-cases that do not require triggering, precise timing, or very fast operation.
+
+Using the digital I/O functionality
+-----------------------------------
+
+To use the |DigitalIO| functionality you first need to initialize a |DwfLibrary| instance. Next, you open a specific device. The device's |DigitalIO| functionality can now be accessed via its |digitalIO:link| attribute, which is an instance of the |DigitalIO:link| class:
+
+.. code-block:: python
+
+   from pydwf import DwfLibrary
+   from pydwf.utilities import openDwfDevice
+
+   dwf = DwfLibrary()
+
+   with openDwfDevice(dwf) as device:
+
+       # Get a reference to the device's DigitalIO functionality.
+       digitalIO = device.digitalIO
+
+       # Use the DigitalIO functionality.
+       digitalIO.reset()
+
+.. important::
+
+   Both the |DigitalIO:link| and |DigitalOut:link| instruments provide an API to drive the same digital outputs. The former provides a very simple API that can be used in cases where precise timing or realtime behavior is not relevant, while the latter provides a more powerful, but also more complicated API that provides far greater control over timing.
+   
+   The rule for which device gets precedence is explained in a `topic on the Digilent forum <https://forum.digilentinc.com/topic/22107-rules-of-precedence-for-digital-out-driving-instruments/>`_. In summary:
+
+   * For DIO channels where the |DigitalIO| instrument sets *outputEnable* to 1, the behavior of the channel is determined by the |DigitalIO| instrument.
+   * For DIO channels where the |DigitalIO| instrument sets *outputEnable* to 0, and the *output* is set to 1, the channel is in high-impedance ('Z') state.
+   * For DIO channels where the |DigitalIO| instrument sets *outputEnable* to 0, and the *output* is set to 0, the behavior of the channel is determined by the |DigitalOut| instrument.
+
+   Thus, in order to use the |DigitalOut| instrument for a specific channel, the user must ensure that the |DigitalIO| instrument sets both the *outputEnable* and *output* configuration bits to 0. In most circumstances it is not necessary to do this explicitly, since this is the default setting of the |DigitalIO| instrument for each channel.
+
+|DigitalIO| reference
+---------------------
+
+.. autoclass:: pydwf.core.api.digital_io.DigitalIO()
+   :inherited-members:

@@ -1,0 +1,40 @@
+#! /usr/bin/env python3
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = np.load("vary_offset.npy")
+
+print(data.shape, data.dtype)
+
+plt.scatter(data["vary"], data["offset"])
+
+#selection = data["attenuation"] < 10.0
+
+#sdata = data[selection]
+
+#plt.subplot(211)
+
+#fitpoly = np.polyfit(sdata["attenuation"], sdata["offset"], deg=1)
+#print(fitpoly)
+#fit = np.polyval(fitpoly, sdata["attenuation"])
+
+#plt.plot(sdata["attenuation"] - fit, fit, 'r', lw=3)
+#plt.scatter(sdata["attenuation"], sdata["offset"])
+
+
+
+
+#plt.subplot(212)
+
+#fitpoly = np.polyfit(sdata["attenuation"], sdata["range"], deg=1)
+#print(fitpoly)
+#fit = np.polyval(fitpoly, sdata["attenuation"])
+
+#plt.plot(sdata["attenuation"], fit, 'r', lw=3)
+##plt.scatter(sdata["attenuation"], sdata["range"])
+plt.show()
+
+
+x = np.unique(data["offset"])
+print(np.diff(x) * 4096)
